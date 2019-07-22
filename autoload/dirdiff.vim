@@ -15,44 +15,21 @@ let s:is_load = 1
 let s:left_dir = ""
 let s:right_dir = ""
 let s:diff_files = {}
-let s:cur_diff = 0
-
-let s:float_win = 0
-let s:float_buf = 0
 
 let s:tab_buf = {}
 
 let s:path_sep = "/"
 
-func dirdiff#run(...) abort
+func dirdiff#run(is_rec, ...) abort
 	if a:0 == 0
 		echo "dir not select"
 	endif
 
-	call s:reset()
-
-	if a:0 == 1
-		let s:left_dir = s:trim_tail(trim(getcwd()))
-		let s:right_dir = s:trim_tail(trim(a:1))
-	else
-		let s:left_dir = s:trim_tail(trim(a:1))
-		let s:right_dir = s:trim_tail(trim(a:2))
-	endif
-
-	if s:left_dir == ""
-		echo "left dir is illege"
-		call s:reset()
-		return
-	endif
-
-	if s:right_dir == ""
-		echo "right dir is illege"
-		call s:reset()
-		return
-	endif
+	call s:parse_args(a:000)
+	let g:dirdiff_rec = a:is_rec
 
 	let left_files = s:get_all_files(s:left_dir)
-	let right_files = s:get_all_files(s:left_dir)
+	let right_files = s:get_all_files(s:right_dir)
 	let total_files = s:union_files(left_files, right_files)
 	let s:diff_files = s:select_diff_files(total_files)
 	if len(s:diff_files) == 0 
@@ -61,6 +38,62 @@ func dirdiff#run(...) abort
 	endif
 
 	call dirdiff#show()
+endfunc
+
+func dirdiff#diff_next()
+	call dirdiff#ui#select_next()
+endfunc
+
+func dirdiff#diff_prev()
+	call dirdiff#ui#select_prev()
+endfunc
+
+func dirdiff#close_cur() abort
+	call dirdiff#ui#close_cur_tab()
+endfunc
+
+func s:parse_args(arg_list) abort
+	if len(a:arg_list) == 0
+		echo "dir not select"
+	endif
+
+	call s:reset()
+
+	let l:left_dir = ""
+	let l:right_dir = ""
+
+	if len(a:arg_list) == 1
+		"let s:left_dir = s:trim_tail(trim(getcwd()))
+		let l:left_dir = "."
+		let l:right_dir = trim(a:arg_list[0])
+	else
+		let l:left_dir = trim(a:arg_list[0])
+		let l:right_dir = trim(a:arg_list[1])
+	endif
+
+	let l:left_dir = s:trim_tail(l:left_dir)
+	let l:right_dir = s:trim_tail(l:right_dir)
+
+	let l:left_dir = glob(l:left_dir)
+	let l:right_dir = glob(l:right_dir)
+
+	if l:left_dir == ""
+		echo "left dir is illege"
+		return
+	endif
+
+	if l:right_dir == ""
+		echo "right dir is illege"
+		return
+	endif
+
+	let s:left_dir = l:left_dir
+	let s:right_dir = l:right_dir
+endfunc
+
+
+func dirdiff#reshow()
+	call dirdiff#ui#reshow()
 endfunc
 
 func dirdiff#show() abort
@@ -79,14 +112,20 @@ func dirdiff#show() abort
 		return
 	endif
 
-	call s:create_float_window()
+	let show_list = []
+	for key in sort(keys(s:diff_files))
+		let item = {}
+		let item.fname = key
+		let item.flag = s:diff_files[key]
+		call add(show_list, item)
+	endfor
+	call dirdiff#ui#show(s:left_dir, s:right_dir, show_list)
 endfunc
 
 func s:reset() abort
 	let s:left_dir = ""
 	let s:right_dir = ""
 	let s:diff_files = {}
-	let s:cur_diff = 0
 endfunc
 
 " 筛选出不同的文件 "
@@ -113,7 +152,7 @@ func s:union_files(left_files, right_files) abort
 	endfor
 
 	for fname in a:right_files
-		if get(files_dict, fname) == 0
+		if has_key(files_dict, fname) == 0
 			let files_dict[fname] = 2
 		else
 			let files_dict[fname] = 3
@@ -136,7 +175,7 @@ endfunc
 
 func s:get_all_files(dir) abort
 	let paths = s:get_all_path(a:dir)
-	let prefix_len = len(dir) + len(s:path_sep)
+	let prefix_len = len(a:dir) + len(s:path_sep)
 	let all_files = []
 	for path in paths
 		call add(all_files, path[prefix_len:-1])
@@ -146,7 +185,7 @@ endfunc
 
 " 获取目录下所有的文件
 func s:get_all_path(dir) abort
-	let ls_cmd = "\ls"
+	let ls_cmd = "\ls -1 " . a:dir
 	let split_char = "\n"
 	let files = split(system(ls_cmd), split_char)
 	let select_files = []
@@ -154,7 +193,7 @@ func s:get_all_path(dir) abort
 		let full_path = a:dir . s:path_sep . fname
 		if filereadable(full_path)
 			call add(select_files, full_path)
-		else
+		elseif g:dirdiff_rec && isdirectory(full_path)
 			let sub_files = s:get_all_path(full_path)
 			call extend(select_files, sub_files)
 		endif
@@ -164,14 +203,14 @@ endfunc
 
 " 比较两个e文件是否相同
 func s:is_same(fn) abort
-	let file1 = s:left_dir .s:path_sep .fn
+	let file1 = s:left_dir .s:path_sep .a:fn
 	if filereadable(file1) == 0
-		return false
+		return v:false
 	endif
 
-	let file2 = s:right_dir .s:path_sep .fn
+	let file2 = s:right_dir .s:path_sep .a:fn
 	if filereadable(file2) == 0
-		return false
+		return v:false
 	endif
 
 	let hash_cmd1 = "md5sum " . file1
@@ -181,60 +220,4 @@ func s:is_same(fn) abort
 	let hash2 = split(system(hash_cmd2), " ")[0]
 
 	return hash1 ==# hash2
-endfunc
-
-" 创建浮动窗口
-func s:create_float_window() abort
-endfunc
-
-" 关闭浮动窗口
-func s:close_float_window() abort
-endfunc
-
-func s:create_diff_view(fname) abort 
-	let file1 = s:left_dir . s:path_sep . fname
-	let file2 = s:right_dir . s:path_sep . fname
-
-	execute "tabnew"
-	let new_tab = nvim_get_current_tabpage()
-	let old_tab = get(s:tab_buf, new_tab, v:false)
-	if old_tab
-		for ot in old_tab
-			execute "bd " . ot
-		endfor
-		call remove(s:tab_buf, new_tab)
-	endif
-
-	execute "e " . file2
-	execute "diffthis"
-	let buf1 = nvim_get_current_buf()
-	execute "vs " . file1
-	execute "diffthis"
-	let buf2 = nvim_get_current_buf()
-
-	let buflist = [buf1, buf2] 
-	let s:tab_buf[new_tab] = buflist
-endfunc
-
-func s:close_cur_tab() abort 
-	let cur_tab = nvim_get_current_tabpage()
-endfunc
-
-let s:test_buf1 = 0
-let s:test_buf2 = 0
-func dirdiff#test() abort
-	execute "tabnew"
-	execute  "e README.md"
-	execute "diffthis"
-	let s:test_buf1 = nvim_get_current_buf()
-
-	execute "vs LICENSE"
-	execute "diffthis"
-	execute "diffthis"
-	let s:test_buf2 = nvim_get_current_buf()
-endfunc
-
-func dirdiff#test_close() abort
-	execute "bd " . s:test_buf1
-	execute "bd " . s:test_buf2
 endfunc

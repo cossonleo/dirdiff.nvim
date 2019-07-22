@@ -1,0 +1,265 @@
+""""""""""""""""""""""""""""""""""""""""""
+"    LICENSE: 
+"     Author: 
+"    Version: 
+" CreateTime: 2019-07-22 18:19:04
+" LastUpdate: 2019-07-22 18:19:04
+"       Desc: 
+""""""""""""""""""""""""""""""""""""""""""
+
+if exists("s:is_loaded")
+	finish
+endif
+
+let s:is_loaded = 1
+let s:path_sep = "/"
+
+let s:float_win_id = 0
+let s:float_buf_id = 0
+let s:select_offset = 0
+
+let s:fname_max_width = 20
+
+let s:tab_buf = {}
+let s:display_content = []
+let s:left_dir = ""
+let s:right_dir = ""
+
+func dirdiff#ui#show(left_dir, right_dir, content) abort
+	let s:left_dir = a:left_dir
+	let s:right_dir = a:right_dir
+	let s:display_content = a:content
+	let s:select_offset = 0
+	call s:set_buf()
+	call s:create_float_win()
+endfunc
+
+func dirdiff#ui#reshow() abort
+	call s:create_float_win()
+endfunc
+
+func dirdiff#ui#close_cur_tab() abort
+	let cur_tab = nvim_get_current_tabpage()
+
+	call s:close_tabpage(cur_tab)
+endfunc
+
+func dirdiff#ui#select_next() abort
+	if len(s:display_content) == 0
+		return
+	endif
+
+	if s:select_offset == len(s:display_content) 
+		let s:select_offset = 0
+	else
+		let s:select_offset = s:select_offset + 1
+	endif
+
+	call s:select_item()
+endfunc
+
+func dirdiff#ui#select_prev() abort
+	if len(s:display_content) == 0
+		return
+	endif
+
+	if s:select_offset == 0
+		let s:select_offset = len(s:display_content) - 1
+	else
+		let s:select_offset = s:select_offset - 1
+	endif
+
+	call s:select_item()
+endfunc
+
+func s:init_buf() abort 
+	if s:float_buf_id == 0
+		let s:float_buf_id = nvim_create_buf(v:false, v:true)
+	else
+		call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, [])
+	endif
+endfunc
+
+func s:set_buf() abort
+	call s:init_buf()
+
+	let dcontent = []
+	for cnt in s:display_content
+		let tmp = ""
+		if cnt.flag == 1
+			let tmp = "  +\t" . cnt.fname
+		elseif cnt.flag == 2
+			let tmp = "  -\t" . cnt.fname
+		elseif cnt.flag == 3
+			let tmp = "  ~\t" . cnt.fname
+		else
+			continue
+		endif
+		if strwidth(tmp) > s:fname_max_width
+			let s:fname_max_width = strwidth(tmp)
+		endif
+		call add(dcontent, tmp)
+	endfor
+
+	call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, dcontent)
+endfunc
+
+func s:create_float_win() abort
+	call s:set_buf()
+	let s:float_win_id = nvim_open_win(s:float_buf_id, v:true, s:get_float_win_config())
+    call nvim_win_set_option(s:float_win_id, 'winhl', 'Normal:Pmenu,NormalNC:Pmenu')
+    call nvim_win_set_option(s:float_win_id, 'foldenable', v:false)
+    call nvim_win_set_option(s:float_win_id, 'wrap', v:true)
+    call nvim_win_set_option(s:float_win_id, 'statusline', '')
+    call nvim_win_set_option(s:float_win_id, 'number', v:false)
+    call nvim_win_set_option(s:float_win_id, 'relativenumber', v:false)
+    call nvim_win_set_option(s:float_win_id, 'cursorline', v:true)
+    call nvim_win_set_option(s:float_win_id, 'signcolumn', "no")
+
+	nnoremap <buffer><silent> <cr> :call <SID>cr_select_item()<cr>
+	nnoremap <buffer><silent> q :call <SID>close_float_win()<cr>
+	nnoremap <buffer><silent> <esc> :call <SID>close_float_win()<cr>
+endfunc
+
+func s:cr_select_item() abort
+	let s:select_offset = getcurpos()[1] - 1
+	call s:close_float_win()
+	call s:select_item()
+endfunc
+
+func s:select_item() abort
+	let item = s:display_content[s:select_offset]
+	call s:create_diff_view(item.fname)
+endfunc
+
+func s:close_float_win() abort
+	if s:float_win_id == 0
+		return
+	endif
+	call nvim_win_close(s:float_win_id, v:false)
+	let s:float_win_id = 0
+endfunc
+
+func s:get_float_win_config() abort
+	let width = min([s:fname_max_width + 1, &columns])
+	let col = (&columns - width) / 2
+	let height = max([len(s:display_content), 10])
+	if &lines > 15
+		let height = min([height, &lines - 5])
+	else
+		let height = min([height, &lines])
+	endif
+
+	let row = (&lines - height) / 2
+
+	let float_win_config = {}
+	let float_win_config.relative = "editor"
+	let float_win_config.height = height
+	let float_win_config.width = width
+	let float_win_config.row = row
+	let float_win_config.col = col
+	return float_win_config
+endfunc
+
+
+func s:create_diff_view(fname) abort 
+	let file1 = s:left_dir . s:path_sep . a:fname
+	let file2 = s:right_dir . s:path_sep . a:fname
+
+	execute "tabnew"
+	execute "e " . file2
+	execute "diffthis"
+	let buf1 = nvim_get_current_buf()
+	call s:set_diff_buf_var(buf1)
+	execute "vs " . file1
+	execute "diffthis"
+	let buf2 = nvim_get_current_buf()
+	call s:set_diff_buf_var(buf2)
+
+	let cur_tab = nvim_get_current_tabpage()
+	call s:close_tabpage(cur_tab)
+	call s:set_tabpage_diff_var(cur_tab)
+	call s:add_dd_list(cur_tab, [buf1, buf2])
+endfunc
+
+func s:add_dd_list(tab_id, buf_list) abort
+	let s:tab_buf[a:tab_id] = a:buf_list
+endfunc
+
+func s:close_tabpage(tab_id) abort
+	if !s:is_diff_tabpage(a:tab_id)
+		return
+	endif
+
+	let buf_list = []
+	try
+		let buf_list = remove(s:tab_buf, a:tab_id)	
+	catch
+		return
+	endtry
+
+	for buff_id in buf_list
+		if nvim_buf_is_valid(buff_id) && s:is_diff_buf(buff_id)
+			execute "bd! " . buff_id
+		end
+	endfor
+
+	if nvim_tabpage_is_valid(a:tab_id)
+		execute "tabc! " . a:tab_id
+	endif
+endfunc
+
+func s:set_tabpage_diff_var(tab_id) abort
+	call nvim_tabpage_set_var(a:tab_id, "is_dd_tab", v:true)
+endfunc
+
+func s:is_diff_tabpage(tab_id) abort
+	try 
+		return nvim_tabpage_get_var(a:tab_id, "is_dd_tab")
+	catch
+		return v:false
+	endtry
+endfunc
+
+func s:is_diff_buf(buf_id) abort
+	try
+		return nvim_buf_get_var(a:buf_id, "is_dd_buf")
+	catch
+		return v:false
+	endtry
+endfunc
+
+func s:set_diff_buf_var(buf_id) abort
+	call nvim_buf_set_var(a:buf_id, "is_dd_buf", v:true)
+endfunc
+
+func dirdiff#ui#test_create_float_win() abort
+	let s:display_content = []
+	let files_str = system("ls -1")
+	let files = split(files_str, "\n")
+
+	for fname in files
+		if filereadable(fname)
+			let fd = {"fname": fname, "flag": 1}
+			call add(s:display_content, fd)
+		endif
+	endfor
+
+	call s:set_buf()
+
+	call s:create_float_win()
+endfunc
+
+func dirdiff#ui#test_reshow() abort
+	call s:reshow()
+endfunc
+
+func dirdiff#ui#test_get_var()
+	try
+		call nvim_buf_get_var(1, "is_dirdiff")
+	catch
+		echo "error"
+	finally
+		echo "finally"
+	endtry
+endfunc

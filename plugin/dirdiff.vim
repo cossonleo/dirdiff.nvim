@@ -11,3 +11,14 @@ if exists("s:is_load")
 	finish
 endif
 let s:is_load = 1
+
+command -nargs=+ -complete=dir DDiff call dirdiff#run(v:false, <f-args>)
+command -nargs=+ -complete=dir DDiffRec call dirdiff#run(v:true, <f-args>)
+
+command DReshow call dirdiff#reshow()
+
+command DClose call dirdiff#close_cur()
+
+command DNext call dirdiff#diff_next()
+
+command DPrev call dirdiff#diff_prev()
