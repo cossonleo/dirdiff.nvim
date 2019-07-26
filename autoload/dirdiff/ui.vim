@@ -187,7 +187,7 @@ endfunc
 func s:select_item() abort
 	let item = s:display_files[s:select_offset]
 	call s:create_diff_view(item.fname)
-	echo "current diff position: " s:select_offset . "/" . len(s:display_files)
+	echo "current diff: " . (s:select_offset + 1) . "/" . len(s:display_files)
 endfunc
 
 func s:close_float_win() abort
@@ -202,13 +202,16 @@ func s:get_float_win_config() abort
 	let width = min([s:fname_max_width + 10, &columns])
 	let col = (&columns - width) / 2
 	let height = max([len(s:display_files), 10])
-	if &lines > 15
-		let height = min([height, &lines - 5])
+	if &lines > 20
+		let height = min([height, &lines - 10])
 	else
 		let height = min([height, &lines])
 	endif
 
 	let row = (&lines - height) / 2
+	if row > 2
+		let row = row - 2
+	endif
 
 	let float_win_config = {}
 	let float_win_config.relative = "editor"
