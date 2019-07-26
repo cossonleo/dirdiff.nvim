@@ -51,12 +51,18 @@ func s:find_complete(strlist) abort
 			endif
 
 			if lsl[0:l:matchslen - 1] ==# l:matchstr
-				call add(l:matchlist, l:matchdir . lsl)
+				let l:complete_item = l:matchdir . lsl
+				if isdirectory(l:complete_item)
+					call add(l:matchlist, l:complete_item)
+				endif
 			endif
 		endfor
 	else
 		for lsl in l:lslists
-			call add(l:matchlist, l:matchdir . lsl)
+			let l:complete_item = l:matchdir . lsl
+			if isdirectory(l:complete_item)
+				call add(l:matchlist, l:complete_item)
+			endif
 		endfor
 	endif
 
