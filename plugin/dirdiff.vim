@@ -12,6 +12,8 @@ if exists("s:is_load")
 endif
 let s:is_load = 1
 
+let g:path_sep = "/"
+
 command -nargs=+ -complete=dir DDiff call dirdiff#run(v:false, <f-args>)
 command -nargs=+ -complete=dir DDiffRec call dirdiff#run(v:true, <f-args>)
 

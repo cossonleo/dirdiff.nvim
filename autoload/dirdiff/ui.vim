@@ -11,24 +11,28 @@ if exists("s:is_loaded")
 	finish
 endif
 
+hi DirDiffChange guifg=#E5C07B
+hi DirDiffAdd guifg=#98C379
+hi DirDiffRemove guifg=#E06C75
+
 let s:is_loaded = 1
-let s:path_sep = "/"
 
 let s:float_win_id = 0
 let s:float_buf_id = 0
+let s:ns_id = 2
 let s:select_offset = 0
 
 let s:fname_max_width = 20
 
 let s:tab_buf = {}
-let s:display_content = []
+let s:display_files = []
 let s:left_dir = ""
 let s:right_dir = ""
 
 func dirdiff#ui#show(left_dir, right_dir, content) abort
 	let s:left_dir = a:left_dir
 	let s:right_dir = a:right_dir
-	let s:display_content = a:content
+	let s:display_files = a:content
 	let s:select_offset = 0
 	call s:set_buf()
 	call s:create_float_win()
@@ -45,11 +49,11 @@ func dirdiff#ui#close_cur_tab() abort
 endfunc
 
 func dirdiff#ui#select_next() abort
-	if len(s:display_content) == 0
+	if len(s:display_files) == 0
 		return
 	endif
 
-	if s:select_offset == len(s:display_content) 
+	if s:select_offset == len(s:display_files) 
 		let s:select_offset = 0
 	else
 		let s:select_offset = s:select_offset + 1
@@ -59,12 +63,12 @@ func dirdiff#ui#select_next() abort
 endfunc
 
 func dirdiff#ui#select_prev() abort
-	if len(s:display_content) == 0
+	if len(s:display_files) == 0
 		return
 	endif
 
 	if s:select_offset == 0
-		let s:select_offset = len(s:display_content) - 1
+		let s:select_offset = len(s:display_files) - 1
 	else
 		let s:select_offset = s:select_offset - 1
 	endif
@@ -76,6 +80,7 @@ func s:init_buf() abort
 	if s:float_buf_id == 0
 		let s:float_buf_id = nvim_create_buf(v:false, v:true)
 	else
+		call nvim_buf_clear_namespace(s:float_buf_id, s:ns_id, 0, -1)
 		call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, [])
 	endif
 endfunc
@@ -83,29 +88,68 @@ endfunc
 func s:set_buf() abort
 	call s:init_buf()
 
-	let dcontent = []
-	for cnt in s:display_content
+	let l:add_files = []
+	let l:remove_files = []
+	let l:change_files = []
+
+	let l:ori_add_files = []
+	let l:ori_remove_files = []
+	let l:ori_change_files = []
+
+	for cnt in s:display_files
 		let tmp = ""
 		if cnt.flag == 1
 			let tmp = "  +\t" . cnt.fname
+			call add(l:add_files, tmp)
+			call add(l:ori_add_files, cnt)
 		elseif cnt.flag == 2
 			let tmp = "  -\t" . cnt.fname
+			call add(l:remove_files, tmp)
+			call add(l:ori_remove_files, cnt)
 		elseif cnt.flag == 3
 			let tmp = "  ~\t" . cnt.fname
+			call add(l:change_files, tmp)
+			call add(l:ori_change_files, cnt)
 		else
 			continue
 		endif
 		if strwidth(tmp) > s:fname_max_width
 			let s:fname_max_width = strwidth(tmp)
 		endif
-		call add(dcontent, tmp)
 	endfor
+	let s:display_files = []
+	call extend(s:display_files, l:ori_add_files)
+	call extend(s:display_files, l:ori_remove_files)
+	call extend(s:display_files, l:ori_change_files)
 
-	call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, dcontent)
+	call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, l:add_files)
+	let l:start_line = 0
+	let l:end_line = l:start_line + len(l:add_files)
+	call s:hi_lines("DirDiffAdd", l:start_line, l:end_line)
+
+	call nvim_buf_set_lines(s:float_buf_id, -1, -1, v:false, l:remove_files)
+	let l:start_line = len(l:add_files)
+	let l:end_line = l:start_line + len(l:remove_files)
+	call s:hi_lines("DirDiffRemove", l:start_line, l:end_line)
+
+	call nvim_buf_set_lines(s:float_buf_id, -1, -1, v:false, l:change_files)
+	let l:start_line = len(l:add_files) + len(l:remove_files)
+	let l:end_line = l:start_line + len(l:change_files)
+	call s:hi_lines("DirDiffChange", l:start_line, l:end_line)
+
+	echo len(s:display_files) . " different files"
+endfunc
+
+" [start_line, endline)
+func s:hi_lines(hl, start_line, end_line) abort
+	let l:cur_line = a:start_line
+	while l:cur_line < a:end_line
+		call nvim_buf_add_highlight(s:float_buf_id, s:ns_id, a:hl, l:cur_line, 0, -1)
+		let l:cur_line = l:cur_line + 1
+	endwhile
 endfunc
 
 func s:create_float_win() abort
-	call s:set_buf()
 	let s:float_win_id = nvim_open_win(s:float_buf_id, v:true, s:get_float_win_config())
     call nvim_win_set_option(s:float_win_id, 'winhl', 'Normal:Pmenu,NormalNC:Pmenu')
     call nvim_win_set_option(s:float_win_id, 'foldenable', v:false)
@@ -128,7 +172,7 @@ func s:cr_select_item() abort
 endfunc
 
 func s:select_item() abort
-	let item = s:display_content[s:select_offset]
+	let item = s:display_files[s:select_offset]
 	call s:create_diff_view(item.fname)
 endfunc
 
@@ -143,7 +187,7 @@ endfunc
 func s:get_float_win_config() abort
 	let width = min([s:fname_max_width + 1, &columns])
 	let col = (&columns - width) / 2
-	let height = max([len(s:display_content), 10])
+	let height = max([len(s:display_files), 10])
 	if &lines > 15
 		let height = min([height, &lines - 5])
 	else
@@ -163,8 +207,8 @@ endfunc
 
 
 func s:create_diff_view(fname) abort 
-	let file1 = s:left_dir . s:path_sep . a:fname
-	let file2 = s:right_dir . s:path_sep . a:fname
+	let file1 = s:left_dir . g:path_sep . a:fname
+	let file2 = s:right_dir . g:path_sep . a:fname
 
 	execute "tabnew"
 	execute "e " . file2
@@ -234,14 +278,14 @@ func s:set_diff_buf_var(buf_id) abort
 endfunc
 
 func dirdiff#ui#test_create_float_win() abort
-	let s:display_content = []
+	let s:display_files = []
 	let files_str = system("ls -1")
 	let files = split(files_str, "\n")
 
 	for fname in files
 		if filereadable(fname)
 			let fd = {"fname": fname, "flag": 1}
-			call add(s:display_content, fd)
+			call add(s:display_files, fd)
 		endif
 	endfor
 

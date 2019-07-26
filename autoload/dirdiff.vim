@@ -18,8 +18,6 @@ let s:diff_files = {}
 
 let s:tab_buf = {}
 
-let s:path_sep = "/"
-
 func dirdiff#run(is_rec, ...) abort
 	if a:0 == 0
 		echo "dir not select"
@@ -167,7 +165,7 @@ func s:trim_tail(str) abort
 	endif
 
 	let last_char = a:str[-1:-1]
-	if last_char ==# s:path_sep
+	if last_char ==# g:path_sep
 		return a:str[0:-2]
 	end
 	return a:str
@@ -175,7 +173,7 @@ endfunc
 
 func s:get_all_files(dir) abort
 	let paths = s:get_all_path(a:dir)
-	let prefix_len = len(a:dir) + len(s:path_sep)
+	let prefix_len = len(a:dir) + len(g:path_sep)
 	let all_files = []
 	for path in paths
 		call add(all_files, path[prefix_len:-1])
@@ -190,7 +188,7 @@ func s:get_all_path(dir) abort
 	let files = split(system(ls_cmd), split_char)
 	let select_files = []
 	for fname in files 
-		let full_path = a:dir . s:path_sep . fname
+		let full_path = a:dir . g:path_sep . fname
 		if filereadable(full_path)
 			call add(select_files, full_path)
 		elseif g:dirdiff_rec && isdirectory(full_path)
@@ -203,12 +201,12 @@ endfunc
 
 " 比较两个e文件是否相同
 func s:is_same(fn) abort
-	let file1 = s:left_dir .s:path_sep .a:fn
+	let file1 = s:left_dir .g:path_sep .a:fn
 	if filereadable(file1) == 0
 		return v:false
 	endif
 
-	let file2 = s:right_dir .s:path_sep .a:fn
+	let file2 = s:right_dir .g:path_sep .a:fn
 	if filereadable(file2) == 0
 		return v:false
 	endif
