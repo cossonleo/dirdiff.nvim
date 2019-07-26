@@ -48,6 +48,13 @@ func dirdiff#ui#close_cur_tab() abort
 	call s:close_tabpage(cur_tab)
 endfunc
 
+func dirdiff#ui#close_all_tab() abort
+	let l:tabs = keys(s:tab_buf)
+	for tab_id in l:tabs
+		call s:close_tabpage(str2nr(tab_id))
+	endfor
+endfunc
+
 func dirdiff#ui#select_next() abort
 	if len(s:display_files) == 0
 		return
@@ -122,22 +129,25 @@ func s:set_buf() abort
 	call extend(s:display_files, l:ori_remove_files)
 	call extend(s:display_files, l:ori_change_files)
 
-	call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, l:add_files)
-	let l:start_line = 0
-	let l:end_line = l:start_line + len(l:add_files)
-	call s:hi_lines("DirDiffAdd", l:start_line, l:end_line)
+	if len(l:add_files) > 0
+		call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, l:add_files)
+		let l:end_line = len(l:add_files)
+		call s:hi_lines("DirDiffAdd", 0, l:end_line)
+	endif
 
-	call nvim_buf_set_lines(s:float_buf_id, -1, -1, v:false, l:remove_files)
-	let l:start_line = len(l:add_files)
-	let l:end_line = l:start_line + len(l:remove_files)
-	call s:hi_lines("DirDiffRemove", l:start_line, l:end_line)
+	if len(l:remove_files) > 0
+		let l:start_line = len(l:add_files)
+		call nvim_buf_set_lines(s:float_buf_id, l:start_line, -1, v:false, l:remove_files)
+		let l:end_line = l:start_line + len(l:remove_files)
+		call s:hi_lines("DirDiffRemove", l:start_line, l:end_line)
+	endif
 
-	call nvim_buf_set_lines(s:float_buf_id, -1, -1, v:false, l:change_files)
-	let l:start_line = len(l:add_files) + len(l:remove_files)
-	let l:end_line = l:start_line + len(l:change_files)
-	call s:hi_lines("DirDiffChange", l:start_line, l:end_line)
-
-	echo len(s:display_files) . " different files"
+	if len(l:change_files) > 0
+		let l:start_line = len(l:add_files) + len(l:remove_files)
+		call nvim_buf_set_lines(s:float_buf_id, l:start_line, -1, v:false, l:change_files)
+		let l:end_line = l:start_line + len(l:change_files)
+		call s:hi_lines("DirDiffChange", l:start_line, l:end_line)
+	endif
 endfunc
 
 " [start_line, endline)

@@ -21,6 +21,8 @@ command DReshow call dirdiff#reshow()
 
 command DClose call dirdiff#close_cur()
 
+command DCloseAll call dirdiff#close_all()
+
 command DNext call dirdiff#diff_next()
 
 command DPrev call dirdiff#diff_prev()

@@ -50,6 +50,10 @@ func dirdiff#close_cur() abort
 	call dirdiff#ui#close_cur_tab()
 endfunc
 
+func dirdiff#close_all() abort
+	call dirdiff#ui#close_all_tab()
+endfunc
+
 func s:parse_args(arg_list) abort
 	if len(a:arg_list) == 0
 		echo "dir not select"
@@ -118,6 +122,7 @@ func dirdiff#show() abort
 		call add(show_list, item)
 	endfor
 	call dirdiff#ui#show(s:left_dir, s:right_dir, show_list)
+	echo len(show_list) . " different files"
 endfunc
 
 func s:reset() abort
