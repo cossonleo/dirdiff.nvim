@@ -95,59 +95,40 @@ endfunc
 func s:set_buf() abort
 	call s:init_buf()
 
-	let l:add_files = []
-	let l:remove_files = []
-	let l:change_files = []
-
-	let l:ori_add_files = []
-	let l:ori_remove_files = []
-	let l:ori_change_files = []
-
-	for cnt in s:display_files
-		let tmp = ""
-		if cnt.flag == 1
-			let tmp = "  +\t" . cnt.fname
-			call add(l:add_files, tmp)
-			call add(l:ori_add_files, cnt)
-		elseif cnt.flag == 2
-			let tmp = "  -\t" . cnt.fname
-			call add(l:remove_files, tmp)
-			call add(l:ori_remove_files, cnt)
-		elseif cnt.flag == 3
-			let tmp = "  ~\t" . cnt.fname
-			call add(l:change_files, tmp)
-			call add(l:ori_change_files, cnt)
+	let l:buf_lines = []
+	let l:buf_his = []
+	for l:file in s:display_files
+		let l:tmp = ""
+		let l:hi = ""
+		if l:file.flag == 1
+			let l:tmp = "  +\t" . l:file.fname
+			let l:hi = "DirDiffAdd"
+		elseif l:file.flag == 2
+			let l:tmp = "  -\t" . l:file.fname
+			let l:hi = "DirDiffRemove"
+		elseif l:file.flag == 3
+			let l:tmp = "  ~\t" . l:file.fname
+			let l:hi = "DirDiffChange"
 		else
 			continue
 		endif
-		if strwidth(tmp) > s:fname_max_width
-			let s:fname_max_width = strwidth(tmp)
+		if strwidth(l:tmp) > s:fname_max_width
+			let s:fname_max_width = strwidth(l:tmp)
 		endif
+		call add(l:buf_lines, l:tmp)
+		call add(l:buf_his, l:hi)
 	endfor
-	let s:display_files = []
-	call extend(s:display_files, l:ori_add_files)
-	call extend(s:display_files, l:ori_remove_files)
-	call extend(s:display_files, l:ori_change_files)
 
-	if len(l:add_files) > 0
-		call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, l:add_files)
-		let l:end_line = len(l:add_files)
-		call s:hi_lines("DirDiffAdd", 0, l:end_line)
-	endif
+	call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, l:buf_lines)
+	call s:buf_set_hls(l:buf_his)
+endfunc
 
-	if len(l:remove_files) > 0
-		let l:start_line = len(l:add_files)
-		call nvim_buf_set_lines(s:float_buf_id, l:start_line, -1, v:false, l:remove_files)
-		let l:end_line = l:start_line + len(l:remove_files)
-		call s:hi_lines("DirDiffRemove", l:start_line, l:end_line)
-	endif
-
-	if len(l:change_files) > 0
-		let l:start_line = len(l:add_files) + len(l:remove_files)
-		call nvim_buf_set_lines(s:float_buf_id, l:start_line, -1, v:false, l:change_files)
-		let l:end_line = l:start_line + len(l:change_files)
-		call s:hi_lines("DirDiffChange", l:start_line, l:end_line)
-	endif
+func s:buf_set_hls(hls) abort
+	let l:cur_line = 0
+	for l:buf_hi in a:hls
+		call nvim_buf_add_highlight(s:float_buf_id, s:ns_id, l:buf_hi, l:cur_line, 0, -1)
+		let l:cur_line = l:cur_line + 1
+	endfor
 endfunc
 
 " [start_line, endline)
@@ -297,7 +278,7 @@ endfunc
 func dirdiff#ui#test_create_float_win() abort
 	let s:display_files = []
 	let files_str = system("ls -1")
-	let files = split(files_str, "\n")
+	let l:files = split(files_str, "\n")
 
 	for fname in files
 		if filereadable(fname)
