@@ -43,7 +43,7 @@ func dirdiff#ui#reshow() abort
 endfunc
 
 func dirdiff#ui#close_cur_tab() abort
-	let cur_tab = nvim_get_current_tabpage()
+	let l:cur_tab = nvim_get_current_tabpage()
 
 	call s:close_tabpage(cur_tab)
 endfunc
@@ -205,23 +205,34 @@ endfunc
 
 
 func s:create_diff_view(fname) abort 
-	let file1 = s:left_dir . g:path_sep . a:fname
-	let file2 = s:right_dir . g:path_sep . a:fname
+	let l:file1 = s:left_dir . g:path_sep . a:fname
+	let l:file2 = s:right_dir . g:path_sep . a:fname
 
-	execute "tabnew"
-	execute "e " . file2
-	execute "diffthis"
+	call nvim_command("tabnew")
+	let l:cur_tab = nvim_get_current_tabpage()
+	call s:set_tabpage_diff_var(l:cur_tab)
+
+	call nvim_command("vs")
+
+	call nvim_command("wincmd h")
+	call nvim_command("e " . l:file1)
+	call nvim_command("diffthis")
 	let buf1 = nvim_get_current_buf()
 	call s:set_diff_buf_var(buf1)
-	execute "vs " . file1
-	execute "diffthis"
+
+	call nvim_command("wincmd l")
+	call nvim_command("e " . l:file2)
+	call nvim_command("diffthis")
 	let buf2 = nvim_get_current_buf()
 	call s:set_diff_buf_var(buf2)
 
-	let cur_tab = nvim_get_current_tabpage()
-	call s:close_tabpage(cur_tab)
-	call s:set_tabpage_diff_var(cur_tab)
-	call s:add_dd_list(cur_tab, [buf1, buf2])
+	call nvim_command("wincmd h")
+
+	if has_key(s:tab_buf, l:cur_tab)
+		call s:close_buffs(s:tab_buf[l:cur_tab])
+	endif
+
+	call s:add_dd_list(l:cur_tab, [buf1, buf2])
 endfunc
 
 func s:add_dd_list(tab_id, buf_list) abort
@@ -233,22 +244,27 @@ func s:close_tabpage(tab_id) abort
 		return
 	endif
 
-	let buf_list = []
+	if nvim_tabpage_is_valid(a:tab_id)
+		execute "tabc! " . a:tab_id
+	endif
+
+	let l:buf_list = []
 	try
-		let buf_list = remove(s:tab_buf, a:tab_id)	
+		let l:buf_list = remove(s:tab_buf, a:tab_id)	
 	catch
 		return
 	endtry
 
-	for buff_id in buf_list
-		if nvim_buf_is_valid(buff_id) && s:is_diff_buf(buff_id)
-			execute "bd! " . buff_id
+	call s:close_buffs(l:buf_list)
+
+endfunc
+
+func s:close_buffs(buf_list) abort
+	for l:buf in a:buf_list
+		if nvim_buf_is_valid(l:buf) && s:is_diff_buf(l:buf)
+			execute "bd! " . l:buf
 		end
 	endfor
-
-	if nvim_tabpage_is_valid(a:tab_id)
-		execute "tabc! " . a:tab_id
-	endif
 endfunc
 
 func s:set_tabpage_diff_var(tab_id) abort
