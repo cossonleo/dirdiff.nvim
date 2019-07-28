@@ -244,9 +244,9 @@ func s:close_tabpage(tab_id) abort
 		return
 	endif
 
-	if nvim_tabpage_is_valid(a:tab_id)
-		execute "tabc! " . a:tab_id
-	endif
+	"if nvim_tabpage_is_valid(a:tab_id)
+	"	execute "tabc! " . a:tab_id
+	"endif
 
 	let l:buf_list = []
 	try
