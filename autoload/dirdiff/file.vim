@@ -28,11 +28,10 @@ func s:parse_args(arg_list) abort
 		return v:false
 	endif
 
+	let l:left_dir = trim(a:arg_list[0])
 	if len(a:arg_list) == 1
-		let l:left_dir = "."
-		let l:right_dir = trim(a:arg_list[0])
+		let l:right_dir = "."
 	else
-		let l:left_dir = trim(a:arg_list[0])
 		let l:right_dir = trim(a:arg_list[1])
 	endif
 

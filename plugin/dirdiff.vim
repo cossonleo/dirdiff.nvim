@@ -15,15 +15,15 @@ let s:is_load = 1
 let g:path_sep = "/"
 let g:ls_split = "\n"
 
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call dirdiff#run(v:false, <f-args>)
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call dirdiff#run(v:true, <f-args>)
+command -nargs=+ -complete=customlist,dirdiff#cmdcomplete Ddiff call dirdiff#run(v:false, <f-args>)
+command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DdiffRec call dirdiff#run(v:true, <f-args>)
 
-command DReshow call dirdiff#reshow()
+command Dresume call dirdiff#reshow()
 
-command DClose call dirdiff#close_cur()
+command Dclose call dirdiff#close_cur()
 
-command DCloseAll call dirdiff#close_all()
+command DcloseAll call dirdiff#close_all()
 
-command DNext call dirdiff#diff_next()
+command Dnext call dirdiff#diff_next()
 
-command DPrev call dirdiff#diff_prev()
+command Dprev call dirdiff#diff_prev()

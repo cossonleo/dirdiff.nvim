@@ -60,10 +60,9 @@ func dirdiff#ui#select_next() abort
 		return
 	endif
 
+	let s:select_offset = s:select_offset + 1
 	if s:select_offset == len(s:display_files) 
 		let s:select_offset = 0
-	else
-		let s:select_offset = s:select_offset + 1
 	endif
 
 	call s:select_item()
@@ -101,11 +100,11 @@ func s:set_buf() abort
 		let l:tmp = ""
 		let l:hi = ""
 		if l:file.flag == 1
-			let l:tmp = "  +\t" . l:file.fname
-			let l:hi = "DirDiffAdd"
-		elseif l:file.flag == 2
 			let l:tmp = "  -\t" . l:file.fname
 			let l:hi = "DirDiffRemove"
+		elseif l:file.flag == 2
+			let l:tmp = "  +\t" . l:file.fname
+			let l:hi = "DirDiffAdd"
 		elseif l:file.flag == 3
 			let l:tmp = "  ~\t" . l:file.fname
 			let l:hi = "DirDiffChange"
@@ -217,14 +216,16 @@ func s:create_diff_view(fname) abort
 	call nvim_command("wincmd h")
 	call nvim_command("e " . l:file1)
 	call nvim_command("diffthis")
-	let buf1 = nvim_get_current_buf()
-	call s:set_diff_buf_var(buf1)
+	let l:buf1 = nvim_get_current_buf()
+	let l:win1 = nvim_get_current_win()
+	call s:set_diff_buf(l:buf1, l:win1)
 
 	call nvim_command("wincmd l")
 	call nvim_command("e " . l:file2)
 	call nvim_command("diffthis")
-	let buf2 = nvim_get_current_buf()
-	call s:set_diff_buf_var(buf2)
+	let l:buf2 = nvim_get_current_buf()
+	let l:win2 = nvim_get_current_win()
+	call s:set_diff_buf(l:buf2, l:win2)
 
 	call nvim_command("wincmd h")
 
@@ -232,7 +233,7 @@ func s:create_diff_view(fname) abort
 		call s:close_buffs(s:tab_buf[l:cur_tab])
 	endif
 
-	call s:add_dd_list(l:cur_tab, [buf1, buf2])
+	call s:add_dd_list(l:cur_tab, [l:buf1, l:buf2])
 endfunc
 
 func s:add_dd_list(tab_id, buf_list) abort
@@ -287,8 +288,9 @@ func s:is_diff_buf(buf_id) abort
 	endtry
 endfunc
 
-func s:set_diff_buf_var(buf_id) abort
+func s:set_diff_buf(buf_id, win_id) abort
 	call nvim_buf_set_var(a:buf_id, "is_dd_buf", v:true)
+	call nvim_win_set_option(a:win_id, "signcolumn", "no")
 endfunc
 
 func dirdiff#ui#test_create_float_win() abort
