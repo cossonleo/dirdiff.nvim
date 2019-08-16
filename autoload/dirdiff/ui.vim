@@ -227,7 +227,7 @@ func s:create_diff_view(fname) abort
 	let l:win2 = nvim_get_current_win()
 	call s:set_diff_buf(l:buf2, l:win2)
 
-	call nvim_command("wincmd h")
+	"call nvim_command("wincmd h")
 
 	if has_key(s:tab_buf, l:cur_tab)
 		call s:close_buffs(s:tab_buf[l:cur_tab])
