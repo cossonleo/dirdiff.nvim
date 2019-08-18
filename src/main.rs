@@ -1,8 +1,11 @@
 use failure::{format_err, Fallible};
 use std::collections::HashSet;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
+
+use magic::{flags::*, Cookie};
 
 #[derive(StructOpt, Debug)]
 struct Opt {
@@ -14,51 +17,46 @@ struct Opt {
     rec: bool,
 }
 
-fn visit_dir<F>(parent: impl AsRef<Path>, f: &mut F) -> Fallible<()>
-where
-    F: FnMut(PathBuf),
-{
-    for entry in fs::read_dir(parent)? {
-        let entry = entry.map_err(|err| format_err!("entry err: {}", err))?;
-        let path = entry.path();
-        if path.is_dir() {
-            visit_dir(&path, f)
-                .map_err(|err| format_err!("visit {} err {}", path.display(), err))?;
-        } else {
-            f(path);
-        }
+struct App {
+    opt: Opt,
+    magic_cookie: Cookie,
+}
+
+impl App {
+    fn new() -> Fallible<Self> {
+        let opt = Opt::from_args();
+        let magic_cookie = Self::init_magic_cookie()?;
+        Ok(Self { opt, magic_cookie })
     }
-    Ok(())
-}
 
-fn file_is_eq(file1: impl AsRef<Path>, file2: impl AsRef<Path>) -> bool {
-    true
-}
+    fn init_magic_cookie() -> Fallible<Cookie> {
+        let cookie = Cookie::open(MIME).unwrap();
+        let database = vec!["/usr/share/file/misc/magic.mgc"];
+        cookie.load(&database)?;
+        Ok(cookie)
+    }
 
-macro_rules! get_sub_path {
-    ($dir: expr) => {{
-        let dir = $dir
-            .canonicalize()
-            .map_err(|err| format_err!("{} canonicalize err {}", $dir.display(), err))?;
-
-        if dir == PathBuf::from("/") {
-            return Err(format_err!("{} is root dir", dir.display()));
+    fn visit_dir<F>(parent: impl AsRef<Path>, f: &mut F) -> Fallible<()>
+    where
+        F: FnMut(PathBuf),
+    {
+        let parent = parent.as_ref();
+        for entry in fs::read_dir(parent)? {
+            let entry = entry
+                .map_err(|err| format_err!("entry err: {}, parent: {}", err, parent.display()))?;
+            let path = entry.path();
+            if path.is_dir() {
+                Self::visit_dir(&path, f)?;
+            } else {
+                f(path);
+            }
         }
+        Ok(())
+    }
 
-        let md = fs::metadata(&dir)
-            .map_err(|err| format_err!("{} metadata err: {}", dir.display(), err))?;
-        if !md.is_dir() {
-            return Err(format_err!("{} is not dir", dir.display()));
-        }
-
-        let mut sub_paths = HashSet::new();
-        visit_dir(&dir, &mut |path| {
-            let path = path.strip_prefix(&dir).unwrap();
-            sub_paths.insert(path.to_path_buf());
-        })
-        .map_err(|err| format_err!("visit {} err {}", dir.display(), err))?;
-        sub_paths
-    }};
+    fn find_diff(&self) -> Fallible<()> {
+        Ok(())
+    }
 }
 
 enum SubPath {
@@ -72,28 +70,55 @@ enum CompareDiff {
     Delete(PathBuf),
 }
 
-struct DirSubPath {
+struct DirSubPath<'a> {
+    magic_cookie: &'a Cookie,
     parent: PathBuf,
     subs: HashSet<PathBuf>,
 }
 
-impl DirSubPath {
-    fn new(parent: PathBuf) -> Fallible<Self> {
-        let subs = get_sub_path!(parent);
-        Ok(Self { parent, subs})
+impl<'a> DirSubPath<'a> {
+    fn new(parent: PathBuf, magic_cookie: &'a Cookie) -> Fallible<Self> {
+        let dir = parent
+            .canonicalize()
+            .map_err(|err| format_err!("{} canonicalize err {}", parent.display(), err))?;
+
+        if dir == PathBuf::from("/") {
+            return Err(format_err!("{} is root dir", dir.display()));
+        }
+
+        let md = fs::metadata(&dir)
+            .map_err(|err| format_err!("{} metadata err: {}", dir.display(), err))?;
+        if !md.is_dir() {
+            return Err(format_err!("{} is not dir", dir.display()));
+        }
+
+        let subs = HashSet::new();
+
+        let mut dsp = Self { magic_cookie, parent, subs };
+
+        App::visit_dir(&dir, &mut |path| {
+            if !dsp.is_text_file(&path) {
+                return
+            }
+            let path = path.strip_prefix(&dir).unwrap();
+            dsp.subs.insert(path.to_path_buf());
+        })
+        .map_err(|err| format_err!("visit {} err {}", dir.display(), err))?;
+
+        Ok(dsp)
     }
 
     fn compare(&self, other: &Self) -> Vec<CompareDiff> {
-        let vec = Vec::new();
+        let mut vec = Vec::new();
         for sub in self.subs.iter() {
             if !other.subs.contains(sub) {
                 vec.push(CompareDiff::Add(sub.clone()));
-                continue
+                continue;
             }
 
             let file1 = self.parent.join(sub);
             let file2 = other.parent.join(sub);
-            if !file_is_eq(&file1, &file2) {
+            if !Self::file_is_eq(&file1, &file2) {
                 vec.push(CompareDiff::Changed(sub.clone()));
             }
         }
@@ -104,33 +129,49 @@ impl DirSubPath {
         }
         vec
     }
-}
 
-struct DiffTree {
-    sub_paths: Vec<SubPath>,
-}
+    fn file_is_eq(file1: impl AsRef<Path>, file2: impl AsRef<Path>) -> bool {
+        let file1 = file1.as_ref();
+        let file2 = file2.as_ref();
 
-impl DiffTree {
-    fn new(dir1: PathBuf, dir2: PathBuf) -> Fallible<Self> {
-        let sub1 = get_sub_path!(dir1);
-        let sub2 = get_sub_path!(dir2);
-    }
+        let md1 = match fs::metadata(file1) {
+            Err(_) => return false,
+            Ok(md) => md,
+        };
+        let md2 = match fs::metadata(file2) {
+            Err(_) => return false,
+            Ok(md) => md,
+        };
 
-    fn get_all_path(parent: impl AsRef<Path>) -> Fallible<Vec<SubPath>> {
-        let vec = Vec::new();
-
-        for entry in fs::read_dir(parent)? {
-            let entry = entry.map_err(|err| format_err!("entry err: {}", err))?;
-            let path = entry.path();
+        if md1.len() != md2.len() {
+            return false;
         }
 
-        Ok(vec)
+        let mut f1 = match fs::File::open(file1) {
+            Err(_) => return false,
+            Ok(f) => f,
+        };
+
+        let mut buf1: [u8; 1024] = [0u8; 1024];
+        f1.read(&mut buf1);
+
+        //md.file_type()
+        true
+    }
+
+    fn is_text_file(&self, p: impl AsRef<Path>) -> bool {
+        let mime = match self.magic_cookie.file(p.as_ref()) {
+            Err(_) => return false,
+            Ok(mime) => mime,
+        };
+        if mime.contains("text/plain") {
+            return true;
+        }
+        false
     }
 }
 
-struct App {}
-
-fn main() {
-    let opt = Opt::from_args();
-    println!("{:?}", opt);
+fn main() -> Fallible<()> {
+    let app = App::new()?;
+    app.find_diff()
 }
