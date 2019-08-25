@@ -1,3 +1,5 @@
+mod file;
+
 use failure::{format_err, Fallible};
 use std::collections::HashSet;
 use std::fs;
@@ -8,9 +10,9 @@ use structopt::StructOpt;
 use magic::{flags::*, Cookie};
 
 #[derive(StructOpt, Debug)]
-struct Opt {
+pub struct Opt {
     #[structopt(short, long, parse(from_os_str))]
-    master: PathBuf,
+    base: PathBuf,
     #[structopt(short, long, parse(from_os_str))]
     branch: PathBuf,
     #[structopt(short, long)]
@@ -57,11 +59,6 @@ impl App {
     fn find_diff(&self) -> Fallible<()> {
         Ok(())
     }
-}
-
-enum SubPath {
-    File(PathBuf),
-    Dir(PathBuf, Vec<Self>),
 }
 
 enum CompareDiff {
