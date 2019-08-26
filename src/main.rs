@@ -6,6 +6,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
+use std::ffi::OsString;
 
 use magic::{flags::*, Cookie};
 
@@ -17,6 +18,12 @@ pub struct Opt {
     branch: PathBuf,
     #[structopt(short, long)]
     rec: bool,
+    #[structopt(short, long, parse(from_os_str))]
+    black_ft: Vec<OsString>,
+    #[structopt(short, long, parse(from_os_str))]
+    white_ft: Vec<OsString>,
+    #[structopt(short, long)]
+    filters: Vec<String>,
 }
 
 struct App {
