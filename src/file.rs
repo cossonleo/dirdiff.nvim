@@ -33,7 +33,7 @@ macro_rules! contain_extension {
 //    fn is_select(&self, p: P) -> bool;
 //}
 
-trait FileFiltor {
+trait FileFilter {
     fn is_select(&self, p: &Path) -> bool;
 }
 
@@ -53,7 +53,7 @@ impl DefaultFiltor {
     }
 }
 
-impl FileFiltor for DefaultFiltor {
+impl FileFilter for DefaultFiltor {
     fn is_select(&self, p: &Path) -> bool {
         match self.magic_cookie {
             None => p.extension().is_some(),
@@ -74,7 +74,7 @@ impl FileFiltor for DefaultFiltor {
 
 struct BlackExtFiltor(Vec<OsString>);
 
-impl FileFiltor for BlackExtFiltor {
+impl FileFilter for BlackExtFiltor {
     fn is_select(&self, p: &Path) -> bool {
         !contain_extension!(self.0, p)
     }
@@ -82,7 +82,7 @@ impl FileFiltor for BlackExtFiltor {
 
 struct WhiteExtFiltor(Vec<OsString>);
 
-impl FileFiltor for WhiteExtFiltor {
+impl FileFilter for WhiteExtFiltor {
     fn is_select(&self, p: &Path) -> bool {
         contain_extension!(self.0, p)
     }
@@ -91,19 +91,11 @@ impl FileFiltor for WhiteExtFiltor {
 pub struct DirComare {
     opt: Opt,
     mcookie: Option<Cookie>,
-    filter: Vec<Box<dyn FileFiltor>>,
+    filter: Vec<Box<dyn FileFilter>>,
 }
 
 // 公有
 impl DirComare {
-    pub fn new(opt: Opt, filter: Vec<Box<dyn FileFiltor>>) -> Self {
-        Self {
-            opt,
-            mcookie: Self::get_magic_cookie(),
-            filter,
-        }
-    }
-
     pub fn is_select(&self, p: impl AsRef<Path>) -> bool {
         let p = p.as_ref();
         for f in self.filter.iter() {
@@ -115,23 +107,24 @@ impl DirComare {
     }
 }
 
-// 私有api
-impl DirComare {
-    fn get_magic_cookie() -> Option<Cookie> {
-        let cookie = Cookie::open(MIME).unwrap();
-        let database = vec!["/usr/share/file/misc/magic.mgc"];
-        match cookie.load(&database) {
-            Ok(_) => Some(cookie),
-            Err(_) => None,
-        }
-    }
-}
-
-pub struct CompareBuilder(DirComare);
+pub struct CompareBuilder(Opt);
 
 impl CompareBuilder {
-    fn new(opt: Opt) -> Self {
-        let filters = Vec::new();
+    fn with(opt: Opt) -> Self {
+        Self(opt)
+    }
+
+    fn build_dir_compare(self) -> DirComare {
+        let filter = Self::get_filters(&self.0);
+        DirComare{
+            opt: self.0,
+            filter,
+            mcookie: Self::get_magic_cookie(),
+        }
+    }
+
+    fn get_filters(opt: &Opt) -> Vec<Box<dyn FileFilter>> {
+        let mut filters: Vec<Box<dyn FileFilter>> = Vec::new();
         let mut exists = BTreeSet::new();
         for f in opt.filters.iter() {
             if exists.contains(f) {
@@ -139,12 +132,20 @@ impl CompareBuilder {
             }
             exists.insert(f);
             if f == "default" {
-                filters.push(Box::new(DefaultFiltor::new() as dyn FileFiltor));
+                filters.push(Box::new(DefaultFiltor::new()));
             } else if f == "white" {
-                filters.push(Box::new(WhiteExtFiltor(opt.white_ft) as dyn FileFiltor));
+                filters.push(Box::new(WhiteExtFiltor(opt.white_ft.clone())));
             }
         }
-        let dc = DirComare::new(opt, filters);
-        Self(dc)
+        filters
+    }
+
+    fn get_magic_cookie() -> Option<Cookie> {
+        let cookie = Cookie::open(MIME).unwrap();
+        let database = vec!["/usr/share/file/misc/magic.mgc"];
+        match cookie.load(&database) {
+            Ok(_) => Some(cookie),
+            Err(_) => None,
+        }
     }
 }
