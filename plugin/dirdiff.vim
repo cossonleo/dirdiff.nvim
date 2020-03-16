@@ -12,6 +12,8 @@ if exists("s:is_load")
 endif
 let s:is_load = 1
 
+lua require("dirdiff")
+
 let g:path_sep = "/"
 let g:ls_split = "\n"
 
