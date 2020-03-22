@@ -34,7 +34,6 @@ func s:parse_args(arg_list) abort
 	else
 		let l:right_dir = trim(a:arg_list[1])
 	endif
-
 	let l:left_dir = s:trim_tail(l:left_dir)
 	let l:right_dir = s:trim_tail(l:right_dir)
 
