@@ -10,10 +10,12 @@ L.getFileName = function(path)
 	path:match("/*$")
 end
 
-M.get_files = function(dir)
+M.get_files = function(dir, is_rec)
 	if not dir or #dir == 0 then
 		return {}
 	end
+
+	local rec = is_rec or false
 
 	local paths = vim.fn.glob(dir .. "/*")
 	if not paths or #paths == 0 then
@@ -26,8 +28,12 @@ M.get_files = function(dir)
 	for _, path in pairs(paths) do
 		local file = path:sub(start)
 		local ft = vim.fn.getftype(path)
-		if #file > 0 and (ft == "dir" or ft == "file") then
-			files[file] = ft
+		if #file > 0 then
+			if ft == "file" then
+				files[file] = ft
+			elseif rec and ft == "dir" then
+				files[file] = ft
+			end
 		end
 	end
 	log.debug(dir, files)
@@ -68,9 +74,9 @@ M.try_convert_encoding_utf8 = function(file)
 
 end
 
-M.diff_dir = function(mine, others)
-	local mine_files = M.get_files(mine)
-	local other_files = M.get_files(others)
+M.diff_dir = function(mine, others, is_rec)
+	local mine_files = M.get_files(mine, is_rec)
+	local other_files = M.get_files(others, is_rec)
 	local diff = {}
 	diff["add"] = {}
 	diff["change"] = {}
@@ -79,15 +85,11 @@ M.diff_dir = function(mine, others)
 		local other_ft = other_files[file]
 		if not other_ft then
 			table.insert(diff["add"], file)
-		end
-		if ft ~= other_ft then
+		elseif ft ~= other_ft then
 			table.insert(diff["change"], file)
-		end
-
-		if ft == "dir" then
+		elseif ft == "dir" then
 		elseif not M.is_equal_file(mine .. "/" .. file, others .. "/" .. file) then
-				table.insert(diff["change"], file)
-			end
+			table.insert(diff["change"], file)
 		end
 	end
 	for file, ft in pairs(other_files) do
@@ -98,10 +100,26 @@ M.diff_dir = function(mine, others)
 	return diff
 end
 
-local u8_txt = vim.fn.readfile("/home/lks/桌面/u8.txt")
-local gb_txt = vim.fn.readfile("/home/lks/桌面/gb.txt")
+M.diff_dir2old = function(mine, others, is_rec)
+	local diffs = M.diff_dir(mine, others, is_rec)
+	local old_diffs = {}
+	for _, f in ipairs(diffs["delete"]) do
+		table.insert(old_diffs, {fname = f, flag = 1})
+	end
+	for _, f in ipairs(diffs["add"]) do
+		table.insert(old_diffs, {fname = f, flag = 2})
+	end
+	for _, f in ipairs(diffs["change"]) do
+		table.insert(old_diffs, {fname = f, flag = 3})
+	end
+	return old_diffs
+end
 
-log.debug("u8", u8_txt)
-log.debug("gb", vim.fn.iconv(gb_txt[1], "", "utf-8"))
+-- local u8_txt = vim.fn.readfile("/home/lks/桌面/u8.txt")
+-- local gb_txt = vim.fn.readfile("/home/lks/桌面/gb.txt")
+-- 
+-- log.debug("u8", u8_txt)
+-- log.debug("gb", vim.fn.iconv(gb_txt[1], "gb2312", "utf-8"))
+-- log.debug(M.diff_dir("./", "../"))
 
 return M
