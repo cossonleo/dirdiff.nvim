@@ -15,25 +15,77 @@ local api = vim.api
 
 local path_sep = "/"
 
-local M = {
-	float_win_id = 0
-	float_buf_id = 0
-	ns_id = 2
-	select_offset = 0
-	fname_max_width = 20
-	tab_buf = {}
-	display_files = {}
-	left_dir = ""
-	right_dir = ""
+local private = {
+	float_win_id = 0,
+	float_buf_id = 0,
+	select_offset = 0,
+	tab_buf = {},
+	diff_files = {},
+	mine_dir = "",
+	others_dir = "",
 }
 
-M.show = function(left_dir, right_dir, content)
-	M.left_dir = left_dir
-	M.right_dir = right_dir
-	M.display_files = content
-	m.select_offset = 0
-	M.set_buf()
-	M.create_float_win()
+function private:close_cur_tab()
+	local cur_tab = api.nvim_get_current_tabpage()
+	local bufs = self.tab_buf[cur_tab]
+	if not bufs then
+		return
+	end
+
+	for _, buf in ipairs(bufs) do
+		api.nvim_command("bd " .. buf)
+	end
+end
+
+function private:close_all_tab()
+	for _, bufs in pairs(self.tab_buf) do
+		for _, buf in ipairs(bufs) do
+			api.nvim_command("bd " .. buf)
+		end
+	end
+end
+
+function private:create_diff_view(fname)
+	local file1 = self.left_dir .. path_sep .. fname
+	local file2 = self.right_dir .. path_sep .. fname
+
+	api.nvim_command("tabnew")
+	local cur_tab = api.nvim_get_current_tabpage()
+
+	api.nvim_command("vs")
+
+	api.nvim_command("wincmd h")
+	api.nvim_command("e " . file1)
+	api.nvim_command("diffthis")
+	local buf1 = api.nvim_get_current_buf()
+	local win1 = api.nvim_get_current_win()
+	api.nvim_win_set_option(win1, "signcolumn", "no")
+
+	api.nvim_command("wincmd l")
+	api.nvim_command("e " . file2)
+	api.nvim_command("diffthis")
+	local buf2 = api.nvim_get_current_buf()
+	local win2 = api.nvim_get_current_win()
+	api.nvim_win_set_option(win2, "signcolumn", "no")
+	self.tab_buf[vur_tab] = {buf1, buf2}
+	-- call nvim_command("wincmd h")
+end
+
+-- param {mine_root = "", others_root = "", diff = {}, sub = { f1 = {}, f2 = {}, f1/f3 = {} }}
+M.show = function(diff_info)
+	private.left_dir = left_dir
+	private.right_dir = right_dir
+	private.display_files = content
+	private.select_offset = 0
+	private.set_buf()
+	private.create_float_win()
+end
+
+M.new_display = function(sub, diff) 
+	return {
+		sub = sub,
+		diff = diff,
+	}
 end
 
 M.reshow = function()
@@ -41,19 +93,25 @@ M.reshow = function()
 end
 
 M.close_cur_tab = function()
-	let l:cur_tab = nvim_get_current_tabpage()
+	local cur_tab = api.nvim_get_current_tabpage()
+	local bufs = private.tab_buf[cur_tab]
+	if not bufs then
+		return
+	end
 
-	call s:close_tabpage(cur_tab)
+	for _, buf in ipairs(bufs) do
+		api.nvim_command("bd " .. buf)
+	end
 end
 
 M.close_all_tab = function()
-	local tabs = keys(M.tab_buf)
-	for tab_id in l:tabs
-		call s:close_tabpage(str2nr(tab_id))
-	endfor
+	-- local tabs = keys(M.tab_buf)
+	-- for tab_id in l:tabs do
+	-- 	call s:close_tabpage(str2nr(tab_id))
+	-- endfor
 end
 
-func dirdiff#ui#select_next() abort
+M.select_next = function()
 	if len(s:display_files) == 0
 		return
 	endif
@@ -64,7 +122,7 @@ func dirdiff#ui#select_next() abort
 	endif
 
 	call s:select_item()
-endfunc
+end
 
 func dirdiff#ui#select_prev() abort
 	if len(s:display_files) == 0
