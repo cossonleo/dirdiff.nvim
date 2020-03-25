@@ -20,9 +20,8 @@ local private = {
 	float_buf_id = 0,
 	select_offset = 0,
 	tab_buf = {},
-	diff_files = {},
-	mine_dir = "",
-	others_dir = "",
+	showed_diff = {},
+	diff_info = {},
 }
 
 function private:close_cur_tab()
@@ -71,44 +70,103 @@ function private:create_diff_view(fname)
 	-- call nvim_command("wincmd h")
 end
 
+function create_float_win()
+	local self.float_win_id = api.nvim_open_win(self.float_buf_id, v:true, self:get_float_win_config())
+    api.nvim_win_set_option(self.float_win_id, 'winhl', 'Normal:Pmenu,NormalNC:Pmenu')
+    api.nvim_win_set_option(self.float_win_id, 'foldenable', v:false)
+    api.nvim_win_set_option(self.float_win_id, 'wrap', v:true)
+    api.nvim_win_set_option(self.float_win_id, 'statusline', '')
+    api.nvim_win_set_option(self.float_win_id, 'number', v:true)
+    api.nvim_win_set_option(self.float_win_id, 'relativenumber', v:false)
+    api.nvim_win_set_option(self.float_win_id, 'cursorline', v:true)
+    api.nvim_win_set_option(self.float_win_id, 'signcolumn', "no")
+	if self.select_offset > 0 then
+		api.nvim_feedkeys((self.select_offset + 1) . "G", "n", v:false)
+	end
+end
+
+function private:close_float_win()
+	if self.float_win_id == 0 then
+		return
+	end
+	api.nvim_win_close(self.float_win_id, false)
+	self.float_win_id = 0
+end
+
+function private:init_float_buf()
+	if self.float_buf_id == 0 then
+		self.float_buf_id = api.nvim_create_buf(false, true)
+	else
+		api.nvim_buf_clear_namespace(self.float_buf_id, self.ns_id, 0, -1)
+		api.nvim_buf_set_lines(self.float_buf_id, 0, -1, false, [])
+	end
+
+	nnoremap <buffer><silent> <cr> :call <SID>cr_select_item()<cr>
+	nnoremap <buffer><silent> q :call <SID>close_float_win()<cr>
+	nnoremap <buffer><silent> <esc> :call <SID>close_float_win()<cr>
+end
+
+function private:set_float_buf()
+	self:init_float_buf()
+
+	local buf_lines = {}
+	local buf_his = {}
+	-- for l:file in s:display_files
+	-- 	let l:tmp = ""
+	-- 	let l:hi = ""
+	-- 	if l:file.flag == 1
+	-- 		let l:tmp = "  -\t" . l:file.fname
+	-- 		let l:hi = "DirDiffRemove"
+	-- 	elseif l:file.flag == 2
+	-- 		let l:tmp = "  +\t" . l:file.fname
+	-- 		let l:hi = "DirDiffAdd"
+	-- 	elseif l:file.flag == 3
+	-- 		let l:tmp = "  ~\t" . l:file.fname
+	-- 		let l:hi = "DirDiffChange"
+	-- 	else
+	-- 		continue
+	-- 	endif
+	-- 	if strwidth(l:tmp) > s:fname_max_width
+	-- 		let s:fname_max_width = strwidth(l:tmp)
+	-- 	endif
+	-- 	call add(l:buf_lines, l:tmp)
+	-- 	call add(l:buf_his, l:hi)
+	-- endfor
+
+	api.nvim_buf_set_lines(self.float_buf_id, 0, -1, false, buf_lines)
+	self:buf_set_hls(buf_his)
+end
+
+function private:buf_set_hls(hls)
+	local cur_line = 0
+	for _, buf_hi in ipair(hls) do
+		api.nvim_buf_add_highlight(self.float_buf_id, self.ns_id, buf_hi, cur_line, 0, -1)
+		cur_line = cur_line + 1
+	end
+end
+
+-- [start_line, endline)
+function private:hi_lines(hl, start_line, end_line)
+	local cur_line = start_line
+	while cur_line < end_line do
+		api.nvim_buf_add_highlight(self.float_buf_id, self.ns_id, hl, cur_line, 0, -1)
+		cur_line = cur_line + 1
+	end
+end
+
+
 -- param {mine_root = "", others_root = "", diff = {}, sub = { f1 = {}, f2 = {}, f1/f3 = {} }}
 M.show = function(diff_info)
 	private.left_dir = left_dir
 	private.right_dir = right_dir
 	private.display_files = content
 	private.select_offset = 0
-	private.set_buf()
+	private.set_float_buf()
 	private.create_float_win()
-end
-
-M.new_display = function(sub, diff) 
-	return {
-		sub = sub,
-		diff = diff,
-	}
 end
 
 M.reshow = function()
 	M.create_float_win()
-end
-
-M.close_cur_tab = function()
-	local cur_tab = api.nvim_get_current_tabpage()
-	local bufs = private.tab_buf[cur_tab]
-	if not bufs then
-		return
-	end
-
-	for _, buf in ipairs(bufs) do
-		api.nvim_command("bd " .. buf)
-	end
-end
-
-M.close_all_tab = function()
-	-- local tabs = keys(M.tab_buf)
-	-- for tab_id in l:tabs do
-	-- 	call s:close_tabpage(str2nr(tab_id))
-	-- endfor
 end
 
 M.select_next = function()
@@ -122,6 +180,9 @@ M.select_next = function()
 	endif
 
 	call s:select_item()
+end
+
+M.select_prev = function()
 end
 
 func dirdiff#ui#select_prev() abort
@@ -138,82 +199,6 @@ func dirdiff#ui#select_prev() abort
 	call s:select_item()
 endfunc
 
-func s:init_buf() abort 
-	if s:float_buf_id == 0
-		let s:float_buf_id = nvim_create_buf(v:false, v:true)
-	else
-		call nvim_buf_clear_namespace(s:float_buf_id, s:ns_id, 0, -1)
-		call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, [])
-	endif
-endfunc
-
-func s:set_buf() abort
-	call s:init_buf()
-
-	let l:buf_lines = []
-	let l:buf_his = []
-	for l:file in s:display_files
-		let l:tmp = ""
-		let l:hi = ""
-		if l:file.flag == 1
-			let l:tmp = "  -\t" . l:file.fname
-			let l:hi = "DirDiffRemove"
-		elseif l:file.flag == 2
-			let l:tmp = "  +\t" . l:file.fname
-			let l:hi = "DirDiffAdd"
-		elseif l:file.flag == 3
-			let l:tmp = "  ~\t" . l:file.fname
-			let l:hi = "DirDiffChange"
-		else
-			continue
-		endif
-		if strwidth(l:tmp) > s:fname_max_width
-			let s:fname_max_width = strwidth(l:tmp)
-		endif
-		call add(l:buf_lines, l:tmp)
-		call add(l:buf_his, l:hi)
-	endfor
-
-	call nvim_buf_set_lines(s:float_buf_id, 0, -1, v:false, l:buf_lines)
-	call s:buf_set_hls(l:buf_his)
-endfunc
-
-func s:buf_set_hls(hls) abort
-	let l:cur_line = 0
-	for l:buf_hi in a:hls
-		call nvim_buf_add_highlight(s:float_buf_id, s:ns_id, l:buf_hi, l:cur_line, 0, -1)
-		let l:cur_line = l:cur_line + 1
-	endfor
-endfunc
-
--- [start_line, endline)
-func s:hi_lines(hl, start_line, end_line) abort
-	let l:cur_line = a:start_line
-	while l:cur_line < a:end_line
-		call nvim_buf_add_highlight(s:float_buf_id, s:ns_id, a:hl, l:cur_line, 0, -1)
-		let l:cur_line = l:cur_line + 1
-	endwhile
-endfunc
-
-func s:create_float_win() abort
-	let s:float_win_id = nvim_open_win(s:float_buf_id, v:true, s:get_float_win_config())
-    call nvim_win_set_option(s:float_win_id, 'winhl', 'Normal:Pmenu,NormalNC:Pmenu')
-    call nvim_win_set_option(s:float_win_id, 'foldenable', v:false)
-    call nvim_win_set_option(s:float_win_id, 'wrap', v:true)
-    call nvim_win_set_option(s:float_win_id, 'statusline', '')
-    call nvim_win_set_option(s:float_win_id, 'number', v:true)
-    call nvim_win_set_option(s:float_win_id, 'relativenumber', v:false)
-    call nvim_win_set_option(s:float_win_id, 'cursorline', v:true)
-    call nvim_win_set_option(s:float_win_id, 'signcolumn', "no")
-	if s:select_offset > 0
-		call nvim_feedkeys((s:select_offset + 1) . "G", "n", v:false)
-	endif
-
-	nnoremap <buffer><silent> <cr> :call <SID>cr_select_item()<cr>
-	nnoremap <buffer><silent> q :call <SID>close_float_win()<cr>
-	nnoremap <buffer><silent> <esc> :call <SID>close_float_win()<cr>
-endfunc
-
 func s:cr_select_item() abort
 	let s:select_offset = getcurpos()[1] - 1
 	call s:close_float_win()
@@ -226,13 +211,6 @@ func s:select_item() abort
 	echo "current diff: " . (s:select_offset + 1) . "/" . len(s:display_files)
 endfunc
 
-func s:close_float_win() abort
-	if s:float_win_id == 0
-		return
-	endif
-	call nvim_win_close(s:float_win_id, v:false)
-	let s:float_win_id = 0
-endfunc
 
 M.get_float_win_config = function()
 	local columns = api.nvim_get_option('columns')
@@ -262,96 +240,9 @@ M.get_float_win_config = function()
 	return float_win_config
 end
 
-
-M.create_diff_view = function(fname)
-	local file1 = M.left_dir .. path_sep .. fname
-	local file2 = M.right_dir .. path_sep .. fname
-
-	api.nvim_command("tabnew")
-	local cur_tab = api.nvim_get_current_tabpage()
-	M.set_tabpage_diff_var(cur_tab)
-
-	api.nvim_command("vs")
-
-	api.nvim_command("wincmd h")
-	api.nvim_command("e " . l:file1)
-	api.nvim_command("diffthis")
-	local buf1 = api.nvim_get_current_buf()
-	local win1 = api.nvim_get_current_win()
-	M.set_diff_buf(buf1, win1)
-
-	api.nvim_command("wincmd l")
-	api.nvim_command("e " . l:file2)
-	api.nvim_command("diffthis")
-	local buf2 = api.nvim_get_current_buf()
-	local win2 = api.nvim_get_current_win()
-	M.set_diff_buf(buf2, win2)
-
-	-- call nvim_command("wincmd h")
-
-	local tb = M.tab_buf[cur_tab]
-	if tb then
-		M.close_buffs(tb)
-	end
-	M.add_dd_list(l:cur_tab, [l:buf1, l:buf2])
-end
-
 func s:add_dd_list(tab_id, buf_list) abort
 	let s:tab_buf[a:tab_id] = a:buf_list
 endfunc
-
-M.close_tabpage = function(tab_id)
-	if !s:is_diff_tabpage(a:tab_id)
-		return
-	endif
-
-	--if nvim_tabpage_is_valid(a:tab_id)
-	--	execute "tabc! " . a:tab_id
-	--endif
-
-	let l:buf_list = []
-	try
-		let l:buf_list = remove(s:tab_buf, a:tab_id)	
-	catch
-		return
-	endtry
-
-	call s:close_buffs(l:buf_list)
-
-end
-
-func s:close_buffs(buf_list) abort
-	for l:buf in a:buf_list
-		if nvim_buf_is_valid(l:buf) && s:is_diff_buf(l:buf)
-			execute "bd! " . l:buf
-		end
-	endfor
-endfunc
-
-func s:set_tabpage_diff_var(tab_id) abort
-	call nvim_tabpage_set_var(a:tab_id, "is_dd_tab", v:true)
-endfunc
-
-func s:is_diff_tabpage(tab_id) abort
-	try 
-		return nvim_tabpage_get_var(a:tab_id, "is_dd_tab")
-	catch
-		return v:false
-	endtry
-endfunc
-
-M.is_diff_buf = function(buf_id)
-	try
-		return api.nvim_buf_get_var(a:buf_id, "is_dd_buf")
-	catch
-		return v:false
-	endtry
-end
-
-M.set_diff_buf = function(buf_id, win_id)
-	api.nvim_buf_set_var(buf_id, "is_dd_buf", v:true)
-	api.nvim_win_set_option(win_id, "signcolumn", "no")
-end
 
 -- func dirdiff#ui#test_create_float_win() abort
 -- 	let s:display_files = []
