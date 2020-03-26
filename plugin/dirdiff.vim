@@ -17,15 +17,15 @@ lua dirdiff = require("dirdiff")
 let g:path_sep = "/"
 let g:ls_split = "\n"
 
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete Ddiff call dirdiff#run(v:false, <f-args>)
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DdiffRec call dirdiff#run(v:true, <f-args>)
+command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call dirdiff#run(v:false, <f-args>)
+command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call dirdiff#run(v:true, <f-args>)
 
-command Dresume call dirdiff#reshow()
+command DResume call dirdiff#reshow()
 
-command Dclose call dirdiff#close_cur()
+command DClose call dirdiff#close_cur()
 
-command DcloseAll call dirdiff#close_all()
+command DCloseAll call dirdiff#close_all()
 
-command Dnext call dirdiff#diff_next()
+command DNext call dirdiff#diff_next()
 
-command Dprev call dirdiff#diff_prev()
+command DPrev call dirdiff#diff_prev()

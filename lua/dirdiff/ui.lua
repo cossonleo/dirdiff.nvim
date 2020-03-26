@@ -85,6 +85,18 @@ function create_float_win()
 	end
 end
 
+function private:get_float_win_config()
+	local columns = api.nvim_get_option('columns')
+	local lines = api.nvim_get_option("lines")
+	let float_win_config = {}
+	let float_win_config.relative = "editor"
+	let float_win_config.height = lines * 3 / 4
+	let float_win_config.width = columns / 2
+	let float_win_config.row = columns / 8
+	let float_win_config.col = width / 4
+	return float_win_config
+end
+
 function private:close_float_win()
 	if self.float_win_id == 0 then
 		return
@@ -211,34 +223,6 @@ func s:select_item() abort
 	echo "current diff: " . (s:select_offset + 1) . "/" . len(s:display_files)
 endfunc
 
-
-M.get_float_win_config = function()
-	local columns = api.nvim_get_option('columns')
-	local width = columns
-	if M.fname_max_width + 10 < columns then
-		width = M.fname_max_width + 10
-	end
-	local col = (columns - width) / 2
-	let height = max([len(s:display_files), 10])
-	if &lines > 20
-		let height = min([height, &lines - 10])
-	else
-		let height = min([height, &lines])
-	endif
-
-	let row = (&lines - height) / 2
-	if row > 2
-		let row = row - 2
-	endif
-
-	let float_win_config = {}
-	let float_win_config.relative = "editor"
-	let float_win_config.height = height
-	let float_win_config.width = width
-	let float_win_config.row = row
-	let float_win_config.col = col
-	return float_win_config
-end
 
 func s:add_dd_list(tab_id, buf_list) abort
 	let s:tab_buf[a:tab_id] = a:buf_list
