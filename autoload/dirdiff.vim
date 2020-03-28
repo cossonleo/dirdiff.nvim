@@ -45,28 +45,28 @@ func dirdiff#reshow()
 endfunc
 
 func dirdiff#show() abort
-	if s:left_dir == ""
-		echo "left dir is not set"
-		return
-	endif
+	"if s:left_dir == ""
+	"	echo "left dir is not set"
+	"	return
+	"endif
 
-	if s:right_dir == ""
-		echo "right dir is not set"
-		return
-	endif
+	"if s:right_dir == ""
+	"	echo "right dir is not set"
+	"	return
+	"endif
 
-	if len(s:diff_files) == 0
-		echo "no files diff"
-		return
-	endif
+	"if len(s:diff_files) == 0
+	"	echo "no files diff"
+	"	return
+	"endif
 
-	let show_list = []
-	for key in sort(keys(s:diff_files))
-		let item = {}
-		let item.fname = key
-		let item.flag = s:diff_files[key]
-		call add(show_list, item)
-	endfor
-	call dirdiff#ui#show(s:left_dir, s:right_dir, show_list)
-	echo len(show_list) . " different files"
+	"let show_list = []
+	"for key in sort(keys(s:diff_files))
+	"	let item = {}
+	"	let item.fname = key
+	"	let item.flag = s:diff_files[key]
+	"	call add(show_list, item)
+	"endfor
+	"call dirdiff#ui#show(s:left_dir, s:right_dir, show_list)
+	"echo len(show_list) . " different files"
 endfunc

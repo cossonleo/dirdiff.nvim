@@ -17,6 +17,11 @@ lua dirdiff = require("dirdiff")
 let g:path_sep = "/"
 let g:ls_split = "\n"
 
+
+hi DirDiffChange guifg=#E5C07B
+hi DirDiffAdd guifg=#98C379
+hi DirDiffRemove guifg=#E06C75
+
 command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call dirdiff#run(v:false, <f-args>)
 command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call dirdiff#run(v:true, <f-args>)
 
