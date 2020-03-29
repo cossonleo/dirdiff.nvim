@@ -70,6 +70,30 @@ M.is_equal_file = function(mine_file, other_file)
 	return true
 end
 
+M.is_equal_dir = function(mine_dir, other_dir)
+	local mine_files = M.get_files(mine, is_rec)
+	local other_files = M.get_files(others, is_rec)
+	if #mine_files ~= #ohter_files then
+		return false
+	end
+	for file, ft in pairs(mine_files) do
+		local other_ft = other_files[file]
+		if not other_ft then
+			return false
+		elseif ft ~= other_ft then
+			return false
+		elseif ft == "dir" then
+			if not M.is_equal_dir(mine_dir .. "/" .. file, other_dir .. "/" .. file) then
+				return false
+			end
+		elseif not M.is_equal_file(mine .. "/" .. file, others .. "/" .. file) then
+			return false
+		end
+	end
+	return true
+end
+
+-- TODO
 M.try_convert_encoding_utf8 = function(file)
 
 end
@@ -88,7 +112,10 @@ M.diff_dir = function(mine, others, is_rec)
 		elseif ft ~= other_ft then
 			table.insert(diff["change"], file)
 		elseif ft == "dir" then
-		elseif not diff.is_equal_file(mine .. "/" .. file, others .. "/" .. file) then
+			if not M.is_equal_dir(mine .. "/" .. file, others .. "/" .. file) then
+				table.insert(diff["change"], file)
+			end
+		elseif not M.is_equal_file(mine .. "/" .. file, others .. "/" .. file) then
 			table.insert(diff["change"], file)
 		end
 	end

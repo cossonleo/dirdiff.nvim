@@ -25,12 +25,12 @@ hi DirDiffRemove guifg=#E06C75
 command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call dirdiff#run(v:false, <f-args>)
 command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call dirdiff#run(v:true, <f-args>)
 
-command DResume call dirdiff#reshow()
+command DResume call v:lua.dirdiff.show()
 
-command DClose call dirdiff#close_cur()
+command DClose call v:lua.dirdiff.close()
 
-command DCloseAll call dirdiff#close_all()
+command DCloseAll call v:lua.dirdiff.close_all()
 
-command DNext call dirdiff#diff_next()
+command DNext call v:lua.dirdiff.diff_next()
 
-command DPrev call dirdiff#diff_prev()
+command DPre call v:lua.dirdiff.diff_pre()
