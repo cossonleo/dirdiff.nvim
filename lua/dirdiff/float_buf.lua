@@ -33,8 +33,12 @@ function M:close_all_tab()
 end
 
 function M:create_diff_view(fname)
-	local file1 = self.diff_info.others_root .. path_sep .. fname
-	local file2 = self.diff_info.mine_root .. path_sep .. fname
+	local real_fname = fname
+	if self.showed_diff ~= "" then
+		real_fname = self.showed_diff .. path_sep .. fname
+	end
+	local file1 = self.diff_info.others_root .. path_sep .. real_fname
+	local file2 = self.diff_info.mine_root .. path_sep .. real_fname
 
 	local ft1 = vim.fn.getftype(file1)
 	local ft2 = vim.fn.getftype(file2)
@@ -70,7 +74,7 @@ function M:get_fname()
 	if self.showed_diff ~= "" then
 		diff = self.diff_info.sub[self.showed_diff]
 	end
-	local cur_line = self.select_offset
+	local cur_line = self.select_offset - 1
 	if cur_line <= #diff.change then
 		log.debug("diff change")
 		return diff.change[cur_line]
@@ -88,31 +92,49 @@ function M:diff_cur_line()
 	local cur_line = api.nvim_win_get_cursor(0)[1]
 	log.debug(cur_line)
 	self.select_offset = cur_line
+	if self.select_offset == 1 then
+		self:back_parent_dir()
+		return
+	end
 	self:create_diff_view(self:get_fname())
 end
 
 function M:diff_next_line()
-	self.select_offset = self.select_offset + 1
 	local diff = self.diff_info.diff
 	if self.showed_diff ~= "" then
 		diff = self.diff_info.sub[self.showed_diff]
 	end
 	if self.select_offset > #diff.change + #diff.add + #diff.delete then
-		self.select_offset = 1
+		self.select_offset = 2
+	else
+		self.select_offset = self.select_offset + 1
 	end
 	self:create_diff_view(self:get_fname())
 end
 
 function M:diff_pre_line()
-	self.select_offset = self.select_offset - 1
 	local diff = self.diff_info.diff
 	if self.showed_diff ~= "" then
 		diff = self.diff_info.sub[self.showed_diff]
 	end
-	if self.select_offset < 1 then
-		self.select_offset = #diff.change + #diff.add + #diff.delete
+	self.select_offset = self.select_offset - 1
+	if self.select_offset <= 1 then
+		self.select_offset = #diff.change + #diff.add + #diff.delete + 1
 	end
 	self:create_diff_view(self:get_fname())
+end
+
+function M:back_parent_dir()
+	if self.showed_diff == "" then
+		return
+	end
+
+	local temp = vim.split(self.showed_diff, path_sep, true)
+	if #temp == 1 then
+		self:update_to("")
+	end
+	local parent = table.concat(temp, path_sep, 1, #temp - 1)
+	self:update_to(parent)
 end
 
 function M:init_float_buf()
@@ -131,7 +153,7 @@ end
 
 function M:set_float_buf()
 	self:init_float_buf()
-	local buf_lines = {}
+	local buf_lines = {"../"}
 	local diff = self.diff_info.diff
 	if self.showed_diff ~= "" then
 		diff = self.diff_info.sub[self.showed_diff]
@@ -140,9 +162,9 @@ function M:set_float_buf()
 	self:add_lines(buf_lines, diff.add, "+")
 	self:add_lines(buf_lines, diff.delete, "-")
 	api.nvim_buf_set_lines(self.float_buf_id, 0, -1, false, buf_lines)
-	self:buf_set_hls(0, #diff.change, "DirDiffChange")
-	self:buf_set_hls(#diff.change, #diff.change + #diff.add, "DirDiffAdd")
-	self:buf_set_hls(#diff.change + #diff.add, #buf_lines, "DirDiffRemove")
+	self:buf_set_hls(1, #diff.change + 1, "DirDiffChange")
+	self:buf_set_hls(#diff.change + 1, #diff.change + #diff.add + 1, "DirDiffAdd")
+	self:buf_set_hls(#diff.change + #diff.add + 1, #buf_lines, "DirDiffRemove")
 end
 
 -- [start, tail)
@@ -158,27 +180,33 @@ function M:add_lines(dst, src, sign)
 	end
 end
 
+function M:update_to(sub_dir)
+	self.select_offset = 0
+	self.showed_diff = sub_dir
+	self:set_float_buf()
+end
+
 -- param {mine_root = "", others_root = "", diff = {}, sub = { f1 = {}, f2 = {}, f1/f3 = {} }}
 function M:update(diff)
 	self.diff_info = diff
 	self.float_buf_id = 0
-	self.select_offset = 0
-	self.showed_diff = ""
-	self:set_float_buf()
+	self:update_to("")
 end
 
 function M:diff_dir(mine, others)
 end
 
 function M:diff_sub_dir(fname)
-	local mine_dir = self.diff_info.others_root .. path_sep .. fname
-	local others_dir = self.diff_info.mine_root .. path_sep .. fname
+	local sub_dir = fname
+	if self.showed_diff ~= "" then
+		sub_dir = self.showed_diff .. path_sep .. fname
+	end
+	local mine_dir = self.diff_info.others_root .. path_sep .. sub_dir
+	local others_dir = self.diff_info.mine_root .. path_sep .. sub_dir
 	local diff_info = dir_diff.dir_diff(mine_dir, others_dir, is_rec)
 	self.sub = self.sub or {}
-	self.sub[fname] = diff_info.diff
-	self.showed_diff = fname
-	self.select_offset = 0
-	self:set_float_buf()
+	self.sub[sub_dir] = diff_info.diff
+	self:update_to(sub_dir)
 end
 
 return {

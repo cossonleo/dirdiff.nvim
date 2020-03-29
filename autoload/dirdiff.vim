@@ -17,10 +17,10 @@ func dirdiff#cmdcomplete(A,L,P) abort
 endfunc
 
 func dirdiff#run(is_rec, ...) abort
-	if a:is_rec
-		echomsg "Recursive is not implement"
-		return
-	endif
+	"if a:is_rec
+	"	echomsg "Recursive is not implement"
+	"	return
+	"endif
 	call dirdiff#file#find(a:is_rec, a:000)
 endfunc
 
