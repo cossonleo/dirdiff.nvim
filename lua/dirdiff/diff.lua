@@ -71,9 +71,9 @@ M.is_equal_file = function(mine_file, other_file)
 end
 
 M.is_equal_dir = function(mine_dir, other_dir)
-	local mine_files = M.get_files(mine, is_rec)
-	local other_files = M.get_files(others, is_rec)
-	if #mine_files ~= #ohter_files then
+	local mine_files = M.get_files(mine_dir, true)
+	local other_files = M.get_files(other_dir, true)
+	if #mine_files ~= #other_files then
 		return false
 	end
 	for file, ft in pairs(mine_files) do
@@ -86,7 +86,7 @@ M.is_equal_dir = function(mine_dir, other_dir)
 			if not M.is_equal_dir(mine_dir .. "/" .. file, other_dir .. "/" .. file) then
 				return false
 			end
-		elseif not M.is_equal_file(mine .. "/" .. file, others .. "/" .. file) then
+		elseif not M.is_equal_file(mine_dir .. "/" .. file, other_dir .. "/" .. file) then
 			return false
 		end
 	end

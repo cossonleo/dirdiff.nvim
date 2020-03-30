@@ -76,7 +76,7 @@ func dirdiff#file#find(is_rec, paths) abort
 	let s:dirdiff_rec = a:is_rec
 
 	"let l:diff_files = v:lua.dirdiff.diff_dir2old(s:right_dir,s:left_dir)
-	call v:lua.dirdiff.diff_dir(s:right_dir,s:left_dir)
+	call v:lua.dirdiff.diff_dir(s:right_dir,s:left_dir, a:is_rec)
 	"call dirdiff#ui#show(s:left_dir, s:right_dir, l:diff_files)
 	"echo len(l:diff_files) . " different files"
 endfunc

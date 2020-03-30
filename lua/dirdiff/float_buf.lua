@@ -203,9 +203,9 @@ function M:diff_sub_dir(fname)
 	end
 	local mine_dir = self.diff_info.others_root .. path_sep .. sub_dir
 	local others_dir = self.diff_info.mine_root .. path_sep .. sub_dir
-	local diff_info = dir_diff.dir_diff(mine_dir, others_dir, is_rec)
-	self.sub = self.sub or {}
-	self.sub[sub_dir] = diff_info.diff
+	local diff_info = dir_diff.diff_dir(mine_dir, others_dir, true)
+	self.diff_info.sub = self.diff_info.sub or {}
+	self.diff_info.sub[sub_dir] = diff_info.diff
 	self:update_to(sub_dir)
 end
 
@@ -217,7 +217,7 @@ return {
 	close_diff_all = function() M:close_all_tab() end,
 	diff_cur = function()
 		M:diff_cur_line()
-		float_win:close_float_win()
+		-- float_win:close_float_win()
 	end,
 	diff_next = function() M:diff_next_line() end,
 	diff_pre = function() M:diff_pre_line() end
