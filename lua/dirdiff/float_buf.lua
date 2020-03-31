@@ -2,35 +2,15 @@ local api = vim.api
 local float_win = require('dirdiff/float_win')
 local dir_diff = require('dirdiff/diff')
 local log = require('dirdiff/log')
-
-local path_sep = "/"
+local diff_win = require('dirdiff/diff_win')
+local plat = require('dirdiff/plat')
 
 local M = {
 	float_buf_id = 0,
 	select_offset = 0,
-	tab_buf = {},
 	showed_diff = "",
 	diff_info = {},
 }
-
-function M:close_cur_tab()
-	local cur_tab = api.nvim_get_current_tabpage()
-	local bufs = self.tab_buf[cur_tab] or {}
-	self.tab_buf[cur_tab] = {}
-
-	for _, buf in ipairs(bufs) do
-		api.nvim_command("bd " .. buf)
-	end
-end
-
-function M:close_all_tab()
-	for i, bufs in pairs(self.tab_buf) do
-		self.tab_buf[i] = {}
-		for _, buf in ipairs(bufs) do
-			api.nvim_command("bd " .. buf)
-		end
-	end
-end
 
 function M:create_diff_view(fname)
 	local p = self:get_path(fname)
@@ -38,27 +18,7 @@ function M:create_diff_view(fname)
 		self:diff_sub_dir(fname)
 		return
 	end
-
-	api.nvim_command("tabnew")
-	local cur_tab = api.nvim_get_current_tabpage()
-
-	api.nvim_command("vs")
-
-	api.nvim_command("wincmd h")
-	api.nvim_command("e " .. p.other)
-	api.nvim_command("diffthis")
-	local buf1 = api.nvim_get_current_buf()
-	local win1 = api.nvim_get_current_win()
-	api.nvim_win_set_option(win1, "signcolumn", "no")
-
-	api.nvim_command("wincmd l")
-	api.nvim_command("e " .. p.mine)
-	api.nvim_command("diffthis")
-	local buf2 = api.nvim_get_current_buf()
-	local win2 = api.nvim_get_current_win()
-	api.nvim_win_set_option(win2, "signcolumn", "no")
-	self.tab_buf[cur_tab] = {buf1, buf2}
-	-- call nvim_command("wincmd h")
+	diff_win:create_diff_view(p.mine, p.other)
 end
 
 function M:get_fname()
@@ -121,11 +81,7 @@ function M:back_parent_dir()
 		return
 	end
 
-	local temp = vim.split(self.showed_diff, path_sep, true)
-	if #temp == 1 then
-		self:update_to("")
-	end
-	local parent = table.concat(temp, path_sep, 1, #temp - 1)
+	local parent = plat.path_parent(self.showed_diff)
 	self:update_to(parent)
 end
 
@@ -185,10 +141,10 @@ end
 function M:get_path(fname)
 	local real_fname = fname
 	if self.showed_diff ~= "" then
-		real_fname = self.showed_diff .. path_sep .. fname
+		real_fname = plat.path_concat(self.showed_diff, fname)
 	end
-	local mine = self.diff_info.mine_root .. path_sep .. real_fname
-	local other = self.diff_info.others_root .. path_sep .. real_fname
+	local mine = plat.path_concat(self.diff_info.mine_root, real_fname)
+	local other = plat.path_concat(self.diff_info.others_root, real_fname)
 	local mine_ft = vim.fn.getftype(mine)
 	local other_ft = vim.fn.getftype(other)
 	if mine_ft == "" then
@@ -222,11 +178,11 @@ end
 function M:diff_sub_dir(fname)
 	local sub_dir = fname
 	if self.showed_diff ~= "" then
-		sub_dir = self.showed_diff .. path_sep .. fname
+		sub_dir = plat.path_concat(self.showed_diff, fname)
 	end
 	if not self.diff_info.sub or not self.diff_info.sub[sub_dir] then
-		local mine_dir = self.diff_info.mine_root .. path_sep .. sub_dir
-		local others_dir = self.diff_info.others_root .. path_sep .. sub_dir
+		local mine_dir = plat.path_concat(self.diff_info.mine_root, sub_dir)
+		local others_dir = plat.path_concat(self.diff_info.others_root, sub_dir)
 		local diff_info = dir_diff.diff_dir(mine_dir, others_dir, true)
 		self.diff_info.sub = self.diff_info.sub or {}
 		self.diff_info.sub[sub_dir] = diff_info.diff

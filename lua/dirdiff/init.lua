@@ -2,8 +2,8 @@
 local diff = require('dirdiff/diff')
 local float_buf = require('dirdiff/float_buf')
 local float_win = require('dirdiff/float_win')
+local diff_win = require('dirdiff/diff_win')
 local M = {}
-local L = {}
 
 M.parse_arg = function(...)
 	local others = select(1, ...)
@@ -32,10 +32,10 @@ M.show = function()
 	float_buf:show()
 end
 M.close = function()
-	float_buf:close_cur_tab()
+	diff_win:close_cur_tab()
 end
 M.close_all = function()
-	float_buf:close_all_tab()
+	diff_win:close_all_tab()
 end
 M.diff_cur = function()
 	float_buf:diff_cur_line()
