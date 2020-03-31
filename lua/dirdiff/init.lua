@@ -3,7 +3,6 @@ local diff = require('dirdiff/diff')
 local float_buf = require('dirdiff/float_buf')
 local float_win = require('dirdiff/float_win')
 local diff_win = require('dirdiff/diff_win')
-local cmd = require('dirdiff/cmd')
 local M = {}
 
 M.parse_arg = function(...)
