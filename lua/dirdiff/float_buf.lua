@@ -162,12 +162,13 @@ function M:set_float_buf()
 	self:add_lines(buf_lines, diff.add, "+")
 	self:add_lines(buf_lines, diff.delete, "-")
 	api.nvim_buf_set_lines(self.float_buf_id, 0, -1, false, buf_lines)
+	self:buf_set_hls(0, 1, "DirDiffBack")
 	self:buf_set_hls(1, #diff.change + 1, "DirDiffChange")
 	self:buf_set_hls(#diff.change + 1, #diff.change + #diff.add + 1, "DirDiffAdd")
 	self:buf_set_hls(#diff.change + #diff.add + 1, #buf_lines, "DirDiffRemove")
 end
 
--- [start, tail)
+-- [start, tail) zero-based
 function M:buf_set_hls(start, tail, hi)
 	for line = start, tail-1 do
 		api.nvim_buf_add_highlight(self.float_buf_id, 0, hi, line, 0, -1)

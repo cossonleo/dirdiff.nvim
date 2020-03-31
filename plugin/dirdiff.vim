@@ -18,6 +18,7 @@ let g:path_sep = "/"
 let g:ls_split = "\n"
 
 
+hi DirDiffBack guifg=#61afef
 hi DirDiffChange guifg=#E5C07B
 hi DirDiffAdd guifg=#98C379
 hi DirDiffRemove guifg=#E06C75
