@@ -33,16 +33,8 @@ function M:close_all_tab()
 end
 
 function M:create_diff_view(fname)
-	local real_fname = fname
-	if self.showed_diff ~= "" then
-		real_fname = self.showed_diff .. path_sep .. fname
-	end
-	local file1 = self.diff_info.others_root .. path_sep .. real_fname
-	local file2 = self.diff_info.mine_root .. path_sep .. real_fname
-
-	local ft1 = vim.fn.getftype(file1)
-	local ft2 = vim.fn.getftype(file2)
-	if ft1 == "dir" and ft1 == ft2 then
+	local p = self:get_path(fname)
+	if p.mine_ft == p.other_ft and p.mine_ft == "dir" then
 		self:diff_sub_dir(fname)
 		return
 	end
@@ -53,14 +45,14 @@ function M:create_diff_view(fname)
 	api.nvim_command("vs")
 
 	api.nvim_command("wincmd h")
-	api.nvim_command("e " .. file1)
+	api.nvim_command("e " .. p.other)
 	api.nvim_command("diffthis")
 	local buf1 = api.nvim_get_current_buf()
 	local win1 = api.nvim_get_current_win()
 	api.nvim_win_set_option(win1, "signcolumn", "no")
 
 	api.nvim_command("wincmd l")
-	api.nvim_command("e " .. file2)
+	api.nvim_command("e " .. p.mine)
 	api.nvim_command("diffthis")
 	local buf2 = api.nvim_get_current_buf()
 	local win2 = api.nvim_get_current_win()
@@ -177,8 +169,35 @@ end
 
 function M:add_lines(dst, src, sign)
 	for _, line in ipairs(src) do
-		table.insert(dst, sign .. "\t" .. line)
+		local p = self:get_path(line)
+		local prefix = ""
+		if p.mine_ft == "file" and p.other_ft == "file" then
+			prefix = "f"
+		elseif p.mine_ft == "dir" and p.other_ft == "dir" then
+			prefix = "d"
+		else
+			prefix = "x"
+		end
+		table.insert(dst, prefix .. sign .. "\t\t" .. line)
 	end
+end
+
+function M:get_path(fname)
+	local real_fname = fname
+	if self.showed_diff ~= "" then
+		real_fname = self.showed_diff .. path_sep .. fname
+	end
+	local mine = self.diff_info.mine_root .. path_sep .. real_fname
+	local other = self.diff_info.others_root .. path_sep .. real_fname
+	local mine_ft = vim.fn.getftype(mine)
+	local other_ft = vim.fn.getftype(other)
+	if mine_ft == "" then
+		mine_ft = other_ft
+	end
+	if other_ft == "" then
+		other_ft = mine_ft
+	end
+	return {mine = mine, other = other, mine_ft = mine_ft, other_ft = other_ft}
 end
 
 function M:update_to(sub_dir)
@@ -205,8 +224,8 @@ function M:diff_sub_dir(fname)
 	if self.showed_diff ~= "" then
 		sub_dir = self.showed_diff .. path_sep .. fname
 	end
-	local mine_dir = self.diff_info.others_root .. path_sep .. sub_dir
-	local others_dir = self.diff_info.mine_root .. path_sep .. sub_dir
+	local mine_dir = self.diff_info.mine_root .. path_sep .. sub_dir
+	local others_dir = self.diff_info.others_root .. path_sep .. sub_dir
 	local diff_info = dir_diff.diff_dir(mine_dir, others_dir, true)
 	self.diff_info.sub = self.diff_info.sub or {}
 	self.diff_info.sub[sub_dir] = diff_info.diff

@@ -23,6 +23,7 @@ M.diff_dir = function(is_rec, ...)
 	local ret = M.parse_arg(...)
 	if not ret.ret then
 		print("dir err")
+		return
 	end
 	float_buf:diff_dir(ret.mine, ret.others, is_rec)
 end
