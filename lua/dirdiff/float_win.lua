@@ -5,8 +5,11 @@ local M = {
 }
 
 function M:create_float_win(buf_id)
+	if self.float_win_id ~= 0 then
+		self:close_float_win()
+	end
 	self.float_win_id = api.nvim_open_win(buf_id, true, self:get_float_win_config())
-    api.nvim_win_set_option(self.float_win_id, 'winhl', 'Normal:Pmenu,NormalNC:Pmenu')
+    api.nvim_win_set_option(self.float_win_id, 'winhl', 'NormalFloat:Pmenu')
     api.nvim_win_set_option(self.float_win_id, 'foldenable', false)
     api.nvim_win_set_option(self.float_win_id, 'wrap', true)
     api.nvim_win_set_option(self.float_win_id, 'statusline', '')

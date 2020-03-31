@@ -5,8 +5,7 @@ local M = {}
 local L = {}
 
 M.diff_dir = function(mine, others, is_rec)
-	float_buf.update(diff.diff_dir(mine, others, is_rec))
-	float_buf.show()
+	float_buf.diff_dir(mine, others, is_rec)
 end
 
 M.show = function()
