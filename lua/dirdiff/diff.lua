@@ -102,29 +102,32 @@ M.diff_dir = function(mine, others, is_rec)
 	local mine_files = M.get_files(mine, is_rec)
 	local other_files = M.get_files(others, is_rec)
 	local diff = {}
-	diff["add"] = {}
-	diff["change"] = {}
-	diff["delete"] = {}
+	diff_add = {}
+	diff_change = {}
+	diff_delete = {}
 	for file, ft in pairs(mine_files) do
 		local other_ft = other_files[file]
 		if not other_ft then
-			table.insert(diff["add"], file)
+			table.insert(diff_add, file)
 		elseif ft ~= other_ft then
-			table.insert(diff["change"], file)
+			table.insert(diff_change, file)
 		elseif ft == "dir" then
 			if not M.is_equal_dir(mine .. "/" .. file, others .. "/" .. file) then
-				table.insert(diff["change"], file)
+				table.insert(diff_change, file)
 			end
 		elseif not M.is_equal_file(mine .. "/" .. file, others .. "/" .. file) then
-			table.insert(diff["change"], file)
+			table.insert(diff_change, file)
 		end
 	end
 	for file, ft in pairs(other_files) do
 		if not mine_files[file] then
-			table.insert(diff["delete"], file)
+			table.insert(diff_delete, file)
 		end
 	end
-	return {mine_root = mine, others_root = others, diff = diff}
+	table.sort(diff_add)
+	table.sort(diff_change)
+	table.sort(diff_delete)
+	return {mine_root = mine, others_root = others, diff = {add = diff_add, change = diff_change, delete = diff_delete}}
 end
 
 -- local u8_txt = vim.fn.readfile("/home/lks/桌面/u8.txt")

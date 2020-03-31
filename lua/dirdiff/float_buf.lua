@@ -224,11 +224,13 @@ function M:diff_sub_dir(fname)
 	if self.showed_diff ~= "" then
 		sub_dir = self.showed_diff .. path_sep .. fname
 	end
-	local mine_dir = self.diff_info.mine_root .. path_sep .. sub_dir
-	local others_dir = self.diff_info.others_root .. path_sep .. sub_dir
-	local diff_info = dir_diff.diff_dir(mine_dir, others_dir, true)
-	self.diff_info.sub = self.diff_info.sub or {}
-	self.diff_info.sub[sub_dir] = diff_info.diff
+	if not self.diff_info.sub or not self.diff_info.sub[sub_dir] then
+		local mine_dir = self.diff_info.mine_root .. path_sep .. sub_dir
+		local others_dir = self.diff_info.others_root .. path_sep .. sub_dir
+		local diff_info = dir_diff.diff_dir(mine_dir, others_dir, true)
+		self.diff_info.sub = self.diff_info.sub or {}
+		self.diff_info.sub[sub_dir] = diff_info.diff
+	end
 	self:update_to(sub_dir)
 end
 
