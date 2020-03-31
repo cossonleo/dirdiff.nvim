@@ -3,6 +3,7 @@ local diff = require('dirdiff/diff')
 local float_buf = require('dirdiff/float_buf')
 local float_win = require('dirdiff/float_win')
 local diff_win = require('dirdiff/diff_win')
+local cmd = require('dirdiff/cmd')
 local M = {}
 
 M.parse_arg = function(...)
@@ -48,6 +49,28 @@ M.diff_pre = function()
 end
 M.close_win = function()
 	float_buf:close_win()
+end
+
+M.cmdcomplete = function(A, L, P)
+	local cwd = vim.fn.getcwd()
+	if #A == 0 then
+		return {cwd}
+	end
+	if cwd == A then
+		return
+	end
+	local paths = vim.fn.glob(A .. "*")
+	if not paths or #paths == 0 then
+		return
+	end
+	paths = vim.split(paths, "\n")
+	ret = {}
+	for _, path in ipairs(paths) do
+		if vim.fn. getftype(path) == "dir" then
+			table.insert(ret, path)
+		end
+	end
+	return ret
 end
 
 return M

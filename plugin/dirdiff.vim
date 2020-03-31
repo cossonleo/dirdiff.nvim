@@ -14,17 +14,14 @@ let s:is_load = 1
 
 lua dirdiff = require("dirdiff")
 
-let g:path_sep = "/"
-let g:ls_split = "\n"
-
-
 hi DirDiffBack guifg=#61afef
 hi DirDiffChange guifg=#E5C07B
 hi DirDiffAdd guifg=#98C379
 hi DirDiffRemove guifg=#E06C75
 
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call v:lua.dirdiff.diff_dir(v:false, <f-args>)
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call v:lua.dirdiff.diff_dir(v:true, <f-args>)
+"he command-completion-customlist
+command -nargs=+ -complete=customlist,v:lua.dirdiff.cmdcomplete DDiff call v:lua.dirdiff.diff_dir(v:false, <f-args>)
+command -nargs=+ -complete=customlist,v:lua.dirdiff.cmdcomplete DDiffRec call v:lua.dirdiff.diff_dir(v:true, <f-args>)
 
 command DResume call v:lua.dirdiff.show()
 

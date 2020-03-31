@@ -82,9 +82,11 @@ func dirdiff#cmdcomplete#get_complete_list(A,L,P) abort
 		return
 	endif
 
-	let l:complete_list = s:complete_path(a:A)
-	if len(l:complete_list) == 0
-		return
-	endif
-	return l:complete_list
+    return split(globpath(&path, a:A), "\n")
+"
+"	let l:complete_list = s:complete_path(a:A)
+"	if len(l:complete_list) == 0
+"		return
+"	endif
+"	return l:complete_list
 endfunc
