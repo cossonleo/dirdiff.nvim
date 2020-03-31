@@ -1,33 +1,52 @@
 
 local diff = require('dirdiff/diff')
 local float_buf = require('dirdiff/float_buf')
+local float_win = require('dirdiff/float_win')
 local M = {}
 local L = {}
 
-M.diff_dir = function(mine, others, is_rec)
-	float_buf.diff_dir(mine, others, is_rec)
+M.parse_arg = function(...)
+	local others = select(1, ...)
+	if not others then
+		return {ret = false}
+	end
+	local mine = select(2, ...)
+	if not mine then
+		mine = "."
+	end
+	others = vim.fn.glob(others)
+	mine = vim.fn.glob(mine)
+	return {ret = true, mine = mine, others = others}
+end
+
+M.diff_dir = function(is_rec, ...)
+	local ret = M.parse_arg(...)
+	if not ret.ret then
+		print("dir err")
+	end
+	float_buf:diff_dir(ret.mine, ret.others, is_rec)
 end
 
 M.show = function()
-	float_buf.show()
+	float_buf:show()
 end
 M.close = function()
-	float_buf.close_diff()
+	float_buf:close_cur_tab()
 end
 M.close_all = function()
-	float_buf.close_diff_all()
+	float_buf:close_all_tab()
 end
 M.diff_cur = function()
-	float_buf.diff_cur()
+	float_buf:diff_cur_line()
 end
 M.diff_next = function()
-	float_buf.diff_next()
+	float_buf:diff_next_line()
 end
 M.diff_pre = function()
-	float_buf.diff_pre()
+	float_buf:diff_pre_line()
 end
 M.close_win = function()
-	float_buf.close_win()
+	float_buf:close_win()
 end
 
 return M

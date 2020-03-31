@@ -195,7 +195,8 @@ end
 
 function M:diff_dir(mine, others, is_rec)
 	self:update(dir_diff.diff_dir(mine, others, is_rec))
-	float_win:create_float_win(self.float_buf_id)
+	--float_win:create_float_win(self.float_buf_id)
+	self:show()
 end
 
 function M:diff_sub_dir(fname)
@@ -211,15 +212,14 @@ function M:diff_sub_dir(fname)
 	self:update_to(sub_dir)
 end
 
-return {
-	update = function(diff) M:update(diff) end,
-	show = function() float_win:create_float_win(M.float_buf_id) end,
-	close_win = function() float_win:close_float_win() end,
-	close_diff = function() M:close_cur_tab() end,
-	close_diff_all = function() M:close_all_tab() end,
-	diff_cur = function() M:diff_cur_line() end,
-	diff_next = function() M:diff_next_line() end,
-	diff_pre = function() M:diff_pre_line() end,
-	diff_dir = function(mine, others, is_rec) M:diff_dir(mine, others, is_rec) end,
-}
+function M:show() 
+	float_win:create_float_win(M.float_buf_id) 
+end
+
+function M:close_win() 
+	float_win:close_float_win() 
+end
+
+return M
+
 

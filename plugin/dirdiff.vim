@@ -22,8 +22,8 @@ hi DirDiffChange guifg=#E5C07B
 hi DirDiffAdd guifg=#98C379
 hi DirDiffRemove guifg=#E06C75
 
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call dirdiff#run(v:false, <f-args>)
-command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call dirdiff#run(v:true, <f-args>)
+command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiff call v:lua.dirdiff.diff_dir(v:false, <f-args>)
+command -nargs=+ -complete=customlist,dirdiff#cmdcomplete DDiffRec call v:lua.dirdiff.diff_dir(v:true, <f-args>)
 
 command DResume call v:lua.dirdiff.show()
 
