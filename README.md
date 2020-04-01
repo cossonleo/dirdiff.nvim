@@ -1,5 +1,5 @@
 # dirdiff.nvim
-Dir two diff for neovim
+Diff two dirs for neovim
 
 ## command
 :DDiff dir1 {dir2}
