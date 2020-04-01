@@ -1,7 +1,6 @@
 local api = vim.api
 local float_win = require('dirdiff/float_win')
 local dir_diff = require('dirdiff/diff')
-local log = require('dirdiff/log')
 local diff_win = require('dirdiff/diff_win')
 local plat = require('dirdiff/plat')
 
@@ -28,21 +27,17 @@ function M:get_fname()
 	end
 	local cur_line = self.select_offset - 1
 	if cur_line <= #diff.change then
-		log.debug("diff change")
 		return diff.change[cur_line]
 	end
 	if cur_line <= #diff.change + #diff.add then
-		log.debug("diff add")
 		return diff.add[cur_line - #diff.change]
 	end
-	log.debug("diff delete")
 	return diff.delete[cur_line - #diff.change - #diff.add]
 end
 
 function M:diff_cur_line()
 	-- 1-based line num
 	local cur_line = api.nvim_win_get_cursor(0)[1]
-	log.debug(cur_line)
 	self.select_offset = cur_line
 	if self.select_offset == 1 then
 		self:back_parent_dir()

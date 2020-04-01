@@ -2,10 +2,6 @@
 local M = {}
 local L = {}
 
-local log = require('dirdiff/log')
-
-log.set_level(0)
-
 L.getFileName = function(path)
 	path:match("/*$")
 end
@@ -36,7 +32,6 @@ M.get_files = function(dir, is_rec)
 			end
 		end
 	end
-	log.debug(dir, files)
 	return files
 end
 
