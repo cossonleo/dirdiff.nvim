@@ -16,7 +16,7 @@ function M.path_concat(left, right)
 	if right[#right] == path_sep then
 		r = right:sub(2)
 	end
-	
+
 	return l .. path_sep .. r
 end
 
@@ -60,7 +60,7 @@ M.cmdcomplete = function(A, L, P)
 		return
 	end
 	paths = vim.split(paths, "\n")
-	ret = {}
+	local ret = {}
 	for _, path in ipairs(paths) do
 		if vim.fn. getftype(path) == "dir" then
 			table.insert(ret, path)
